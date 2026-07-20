@@ -1,0 +1,47 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# Local harness state and databases
+.flakemedic/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Frontend
+node_modules/
+web/dist/
+playwright-report/
+test-results/
+
+# Development-tool indexes and local worktrees
+.codegraph/
+.worktrees/
+worktrees/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
