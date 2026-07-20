@@ -71,3 +71,5 @@ YagCode 期末项目：Coding Agent Harness。
 - 产品支持用户明确要求的 `git push`，执行前展示 remote、目标分支和 commit 列表；修复、接受或 commit 均不会自动触发 push。
 - 完全访问可以免除普通 push 的逐次审批，但不能替代明确的用户 push 指令；force push、删除远程 ref、标签和非 fast-forward 更新使用独立高风险授权。
 - 当前项目仓库仍严格禁止 push、远程发布、部署和创建远程 PR。
+- 接受修改默认作用于当前分支，不自动创建分支；用户可显式选择“创建新分支并应用”，名称可编辑，dirty 内容无法安全分离时禁用该选项。
+- MVP 不内置 GitHub PR 或 GitHub MR 创建与同步；外部 `gh`、`glab` 等工具只作为经过授权的普通 shell 命令使用。
