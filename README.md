@@ -12,9 +12,10 @@ YagCode 期末项目：Coding Agent Harness。
 ## 已确认的运行形态
 
 - 本地 Harness sidecar 采用 Python 3.12、FastAPI、SQLite 和系统 keyring，Agent 内核自行实现。
-- 真实产品采用 Tauri 2 桌面壳；React + TypeScript + Vite 前端嵌入原生 webview，macOS 与 Windows 复用同一套前端和业务代码。
-- Python Harness 打包为平台 sidecar，由 Tauri 启动并监控；FastAPI 在随机 loopback 端口提供带随机握手令牌的 HTTP/SSE API。
-- Tauri/Rust 只处理窗口、目录选择、通知、关闭拦截、sidecar 生命周期和安装包，不承载交付 Harness 的 Agent loop 或治理机制。
+- 真实产品采用 Electron 桌面壳；Node.js/TypeScript main process 负责窗口、目录选择、通知、关闭拦截、sidecar 生命周期和安装包，不承载 Agent loop。
+- React + TypeScript + Vite renderer 负责 UI，并启用 `contextIsolation`、sandbox、严格 CSP、禁用 `nodeIntegration`；preload 只暴露最小 typed IPC。
+- Python Harness 打包为平台 sidecar，由 Electron 启动并监控；FastAPI 在随机 loopback 端口提供带随机握手令牌的 HTTP/SSE API。
+- macOS 与 Windows 复用 Electron、React 和 Python 源码，分别构建平台/架构产物；默认不合并为体积更大的 macOS universal binary。
 - 同一 React 源码另行构建公网 mock 演示，只运行内置 fixture，不访问访客文件或执行任意代码。
 - 默认验证策略可由用户覆盖，标准级要求复现原问题、目标与相关测试通过、静态检查通过且 diff 合规。
 - 目标仓库按语言无关方式处理；测试、lint、类型检查和构建命令由项目配置声明并进入 allowlist。
