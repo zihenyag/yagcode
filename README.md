@@ -15,8 +15,8 @@ YagCode 期末项目：Coding Agent Harness。
 - 真实产品采用 Electron 桌面壳；Node.js/TypeScript main process 负责窗口、目录选择、通知、关闭拦截、sidecar 生命周期和安装包，不承载 Agent loop。
 - React + TypeScript + Vite renderer 负责 UI，并启用 `contextIsolation`、sandbox、严格 CSP、禁用 `nodeIntegration`；preload 只暴露最小 typed IPC。
 - Python Harness 打包为平台 sidecar，由 Electron 启动并监控；FastAPI 在随机 loopback 端口提供带随机握手令牌的 HTTP/SSE API。
-- macOS 与 Windows 复用 Electron、React 和 Python 源码，分别构建平台/架构产物；默认不合并为体积更大的 macOS universal binary。
-- 同一 React 源码另行构建公网 mock 演示，只运行内置 fixture，不访问访客文件或执行任意代码。
+- macOS 与 Windows 复用 Electron、React 和 Python 源码；MVP 只构建 macOS 13+ Apple Silicon `.dmg` 与 Windows 10/11 x64 NSIS `.exe`，不支持 macOS Intel，也不构建 universal binary。
+- GitHub Pages 只提供产品落地页，嵌入 Bilibili 讲解视频并链接 GitHub Release、README 与源码；不提供在线 Agent 或 mock WebUI。
 - 默认验证策略可由用户覆盖，标准级要求复现原问题、目标与相关测试通过、静态检查通过且 diff 合规。
 - 目标仓库按语言无关方式处理；测试、lint、类型检查和构建命令由项目配置声明并进入 allowlist。
 
@@ -25,7 +25,7 @@ YagCode 期末项目：Coding Agent Harness。
 - OpenAI 为默认主要 Provider，另行官方支持 Qwen、GLM 和 DeepSeek；不支持 Anthropic。
 - Harness 每轮只向 Provider 请求一个结构化候选 action，工具执行、反馈、记忆和停机均由本项目代码控制。
 - 用户可在同一个 bug 中切换 Provider 或模型，但必须先手动中断运行、保存 checkpoint，再切换并显式恢复；运行中模型选择器禁用。
-- scripted/mock Provider 用于离线确定性测试和公网演示。
+- scripted/mock Provider 用于离线确定性测试、仓库内机制演示和 Bilibili 讲解，不提供公网运行模式。
 
 ## 已确认的权限与隐私模型
 
