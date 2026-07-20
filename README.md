@@ -91,3 +91,12 @@ YagCode 期末项目：Coding Agent Harness。
 - 当前项目仓库仍严格禁止 push、远程发布、部署和创建远程 PR。
 - 接受修改默认作用于当前分支，不自动创建分支；用户可显式选择“创建新分支并应用”，名称可编辑，dirty 内容无法安全分离时禁用该选项。
 - MVP 不内置 GitHub PR 或 GitHub MR 创建与同步；外部 `gh`、`glab` 等工具只作为经过授权的普通 shell 命令使用。
+
+## 已确认的验证与交付
+
+- 六个 Harness 维度均实现可运行基础，确定性治理作为做深的主要贡献；真实 LLM 移除后，路径、权限、隔离、审批、接受和回档仍可离线验证。
+- scripted/mock Provider 的机制演示必须展示危险动作被拦截、失败反馈改变下一 action，以及 dirty 工作区隔离与冲突拒绝接受。
+- Python 单元测试、临时 Git 仓库集成测试、Vitest、Playwright Electron、凭据 canary、secret scan 和干净安装测试组成发布门禁。
+- 故障注入覆盖非法 action、迟到响应、Provider/工具重试上限、副作用结果未知、checkpoint/压缩失败、路径穿越、并发冲突和崩溃恢复。
+- `GitHub Actions` 必须包含名称完全为 `offline-check` 的离线 job；GitHub Actions 负责公开仓库检查、Release 产物和 Pages 落地页。
+- GitHub 是公开开发与 Release 主仓库，GitHub 是Release evidence；当前禁止任何 push、远程 PR、Release、Pages 和 Bilibili 发布，后续必须另行授权。
