@@ -4,10 +4,12 @@ YagCode 期末项目：Coding Agent Harness。
 
 
 - [Brainstorming 过程与用户决策](design notes)
+- [Gate 3 产品规约草案](product spec)
 - [初始化候选规划（历史材料）](PROJECT_PLANNING.md)
 - [项目与项目要求](YagCode_product brief_A_Coding_Agent_Harness.md)
 - [Agent 协作记录](agent log)
 
+当前只允许完成并审阅项目 `product spec`；批准后才由 `writing-plans` 生成 `runtime plan`，再进行陌生 Agent 冷启动验证。在这些门禁全部通过前不提交 Harness 业务实现。
 
 ## 已确认的运行形态
 
@@ -15,8 +17,8 @@ YagCode 期末项目：Coding Agent Harness。
 - 真实产品采用 Electron 桌面壳；Node.js/TypeScript main process 负责窗口、目录选择、通知、关闭拦截、sidecar 生命周期和安装包，不承载 Agent loop。
 - React + TypeScript + Vite renderer 负责 UI，并启用 `contextIsolation`、sandbox、严格 CSP、禁用 `nodeIntegration`；preload 只暴露最小 typed IPC。
 - Python Harness 打包为平台 sidecar，由 Electron 启动并监控；FastAPI 在随机 loopback 端口提供带随机握手令牌的 HTTP/SSE API。
-- macOS 与 Windows 复用 Electron、React 和 Python 源码；MVP 只构建 macOS 13+ Apple Silicon `.dmg` 与 Windows 10/11 x64 NSIS `.exe`，不支持 macOS Intel，也不构建 universal binary。
-- GitHub Pages 只提供产品落地页，嵌入 Bilibili 讲解视频并链接 GitHub Release、README 与源码；不提供在线 Agent 或 mock WebUI。
+- macOS 与 Windows 复用 Electron、React 和 Python 源码；GitHub Release 是唯一桌面分发渠道，每个平台只要求用户下载一个安装产物：macOS 13+ Apple Silicon `.dmg` 或 Windows 10/11 x64 NSIS `.exe`。这里的“单文件”指 Release 下载物，安装后的 App 可以包含 Electron、renderer 和 Python sidecar 等多个文件；不支持 macOS Intel，也不构建 universal binary。
+- GitHub Pages 根路径提供产品落地页并嵌入 Bilibili 讲解；`/demo/` 提供 fixture-only 安全交互 WebUI，仅用内置 scripted scenario 展示护栏、反馈闭环和 dirty 隔离，不接真实 Provider/sidecar、用户文件、key 或 shell。
 - 默认验证策略可由用户覆盖，标准级要求复现原问题、目标与相关测试通过、静态检查通过且 diff 合规。
 - 目标仓库按语言无关方式处理；测试、lint、类型检查和构建命令由项目配置声明并进入 allowlist。
 
@@ -25,7 +27,7 @@ YagCode 期末项目：Coding Agent Harness。
 - OpenAI 为默认主要 Provider，另行官方支持 Qwen、GLM 和 DeepSeek；不支持 Anthropic。
 - Harness 每轮只向 Provider 请求一个结构化候选 action，工具执行、反馈、记忆和停机均由本项目代码控制。
 - 用户可在同一个 bug 中切换 Provider 或模型，但必须先手动中断运行、保存 checkpoint，再切换并显式恢复；运行中模型选择器禁用。
-- scripted/mock Provider 用于离线确定性测试、仓库内机制演示和 Bilibili 讲解，不提供公网运行模式。
+- scripted/mock Provider 用于离线确定性测试与仓库内机制演示；公网 `/demo/` 只运行浏览器内固定 scenario interpreter，不复用真实 Harness loop，也不接收访客代码。
 
 ## 已确认的权限与隐私模型
 
@@ -98,5 +100,5 @@ YagCode 期末项目：Coding Agent Harness。
 - scripted/mock Provider 的机制演示必须展示危险动作被拦截、失败反馈改变下一 action，以及 dirty 工作区隔离与冲突拒绝接受。
 - Python 单元测试、临时 Git 仓库集成测试、Vitest、Playwright Electron、凭据 canary、secret scan 和干净安装测试组成发布门禁。
 - 故障注入覆盖非法 action、迟到响应、Provider/工具重试上限、副作用结果未知、checkpoint/压缩失败、路径穿越、并发冲突和崩溃恢复。
-- `GitHub Actions` 必须包含名称完全为 `offline-check` 的离线 job；GitHub Actions 负责公开仓库检查、Release 产物和 Pages 落地页。
+- `GitHub Actions` 必须包含名称完全为 `offline-check` 的离线 job；GitHub Actions 负责公开仓库检查、Release 产物、Pages 落地页和 fixture-only `/demo/` 的安全/E2E 检查。
 - GitHub 是公开开发与 Release 主仓库，GitHub 是Release evidence；当前禁止任何 push、远程 PR、Release、Pages 和 Bilibili 发布，后续必须另行授权。
