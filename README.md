@@ -4,12 +4,11 @@ YagCode 期末项目：Coding Agent Harness。
 
 
 - [Brainstorming 过程与用户决策](design notes)
-- [Gate 4 实现计划](runtime plan)
 - [初始化候选规划（历史材料）](PROJECT_PLANNING.md)
 - [项目与项目要求](YagCode_product brief_A_Coding_Agent_Harness.md)
 - [Agent 协作记录](agent log)
 
-当前只允许完成并审阅 `runtime plan`；计划批准后再进行不同类型陌生 Agent 的冷启动试做，并根据问题修订 SPEC/PLAN。在这些门禁全部通过前不保留 Harness 业务实现。
+当前只允许用不同类型的陌生 Agent 仅凭 `product spec` 与 `runtime plan` 完成 Gate 5 冷启动复验，并把问题回灌到文档。在 Gate 5 通过前不保留 Harness 业务实现。
 
 ## 已确认的运行形态
 
@@ -18,7 +17,7 @@ YagCode 期末项目：Coding Agent Harness。
 - React + TypeScript + Vite renderer 负责 UI，并启用 `contextIsolation`、sandbox、严格 CSP、禁用 `nodeIntegration`；preload 只暴露最小 typed IPC。
 - Python Harness 打包为平台 sidecar，由 Electron 启动并监控；FastAPI 在随机 loopback 端口提供带随机握手令牌的 HTTP/SSE API。
 - macOS 与 Windows 复用 Electron、React 和 Python 源码；GitHub Release 是唯一桌面分发渠道，每个平台只要求用户下载一个安装产物：macOS 13+ Apple Silicon `.dmg` 或 Windows 10/11 x64 NSIS `.exe`。这里的“单文件”指 Release 下载物，安装后的 App 可以包含 Electron、renderer 和 Python sidecar 等多个文件；不支持 macOS Intel，也不构建 universal binary。
-- GitHub Pages 只提供静态产品落地页、截图、Bilibili 讲解和 Release/README/源码链接；不提供在线 demo、浏览器 Agent、任务输入、用户文件/key 或 shell。
+- 老师已明确项目所称 WebUI 就是 GitHub Pages 产品落地页；页面只提供产品介绍、截图、Bilibili 讲解和 Release/README/源码链接，不要求也不提供在线 demo、浏览器 Agent、任务输入、用户文件/key 或 shell。该方案已合规，但尚未实现或部署。
 - 默认验证策略可由用户覆盖，标准级要求复现原问题、目标与相关测试通过、静态检查通过且 diff 合规。
 - 目标仓库按语言无关方式处理；测试、lint、类型检查和构建命令由项目配置声明并进入 allowlist。
 
