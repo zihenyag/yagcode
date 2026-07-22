@@ -1,0 +1,53 @@
+{
+  "branches": {
+    "apply_patch": {"action": "ApplyPatchAction", "payload": "ApplyPatchPayload"},
+    "git_inspect": {"action": "GitInspectAction", "payload": "GitInspectPayload"},
+    "list_directory": {"action": "ListDirectoryAction", "payload": "ListDirectoryPayload"},
+    "read_text": {"action": "ReadTextAction", "payload": "ReadTextPayload"},
+    "request_review": {"action": "RequestReviewAction", "payload": "RequestReviewPayload"},
+    "run_command": {"action": "RunCommandAction", "payload": "RunCommandPayload"},
+    "run_validation": {"action": "RunValidationAction", "payload": "RunValidationPayload"},
+    "search_literal": {"action": "SearchLiteralAction", "payload": "SearchLiteralPayload"}
+  },
+  "objects": {
+    "Action": {"required": ["action_id", "run_id", "generation", "reason_summary", "kind", "payload"], "closed": true},
+    "ListDirectoryPayload": {"required": ["root_id", "relative_path", "max_depth", "max_entries"], "closed": true},
+    "ReadTextPayload": {"required": ["root_id", "relative_path", "start_line", "end_line", "max_bytes"], "closed": true},
+    "SearchLiteralPayload": {"required": ["root_id", "relative_path", "query", "globs", "max_results"], "closed": true},
+    "ApplyPatchPayload": {"required": ["root_id", "relative_path", "base_sha256", "hunks"], "closed": true},
+    "PatchHunk": {"required": ["start_line", "delete_line_count", "expected_text", "replacement_text"], "closed": true},
+    "GitInspectPayload": {"required": ["operation"], "closed": true},
+    "RunCommandPayload": {"required": ["template_id", "arguments", "cwd_root_id", "cwd_relative_path", "timeout_ms"], "closed": true},
+    "RunValidationPayload": {"required": ["validator_id", "target_paths"], "closed": true},
+    "RequestReviewPayload": {"required": ["summary", "uncovered"], "closed": true}
+  },
+  "constraints": {
+    "action_id": {"minLength": 1, "maxLength": 128},
+    "run_id": {"minLength": 1, "maxLength": 128},
+    "generation": {"minimum": 0},
+    "reason_summary": {"minLength": 1, "maxLength": 2000},
+    "root_id": {"minLength": 1, "maxLength": 128},
+    "optional_path": {"minLength": 0, "maxLength": 1024},
+    "required_path": {"minLength": 1, "maxLength": 1024},
+    "short_text": {"minLength": 1, "maxLength": 128},
+    "hunk_text": {"minLength": 0, "maxLength": 65536},
+    "list_directory.max_depth": {"minimum": 0, "maximum": 16},
+    "list_directory.max_entries": {"minimum": 1, "maximum": 1000},
+    "read_text.start_line": {"minimum": 1},
+    "read_text.end_line": {"minimum": 1},
+    "read_text.max_bytes": {"minimum": 1, "maximum": 1048576},
+    "search_literal.query": {"minLength": 1, "maxLength": 512},
+    "search_literal.globs": {"minItems": 0, "maxItems": 20, "items": {"minLength": 1, "maxLength": 128}},
+    "search_literal.max_results": {"minimum": 1, "maximum": 500},
+    "apply_patch.base_sha256": {"pattern": "^[0-9a-f]{64}$"},
+    "apply_patch.hunks": {"minItems": 1, "maxItems": 50},
+    "patch_hunk.start_line": {"minimum": 1},
+    "patch_hunk.delete_line_count": {"minimum": 0, "maximum": 10000},
+    "git_inspect.operation": {"enum": ["head", "status", "index", "worktree", "common_dir"]},
+    "run_command.arguments": {"maxProperties": 32, "propertyNames": {"minLength": 1, "maxLength": 64}, "additionalProperties": {"minLength": 0, "maxLength": 1024}},
+    "run_command.timeout_ms": {"minimum": 1000, "maximum": 600000},
+    "run_validation.target_paths": {"minItems": 1, "maxItems": 100, "items": {"minLength": 1, "maxLength": 1024}},
+    "request_review.summary": {"minLength": 1, "maxLength": 4000},
+    "request_review.uncovered": {"minItems": 0, "maxItems": 100, "items": {"minLength": 1, "maxLength": 1024}}
+  }
+}

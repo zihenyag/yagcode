@@ -1,0 +1,743 @@
+{
+  "$defs": {
+    "ApplyPatchAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "apply_patch",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ApplyPatchPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "ApplyPatchAction",
+      "type": "object"
+    },
+    "ApplyPatchPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "base_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Base Sha256",
+          "type": "string"
+        },
+        "hunks": {
+          "items": {
+            "$ref": "#/$defs/PatchHunk"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Hunks",
+          "type": "array"
+        },
+        "relative_path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "root_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Root Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root_id",
+        "relative_path",
+        "base_sha256",
+        "hunks"
+      ],
+      "title": "ApplyPatchPayload",
+      "type": "object"
+    },
+    "GitInspectAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "git_inspect",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/GitInspectPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "GitInspectAction",
+      "type": "object"
+    },
+    "GitInspectPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "operation": {
+          "enum": [
+            "head",
+            "status",
+            "index",
+            "worktree",
+            "common_dir"
+          ],
+          "title": "Operation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation"
+      ],
+      "title": "GitInspectPayload",
+      "type": "object"
+    },
+    "ListDirectoryAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "list_directory",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ListDirectoryPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "ListDirectoryAction",
+      "type": "object"
+    },
+    "ListDirectoryPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "max_depth": {
+          "maximum": 16,
+          "minimum": 0,
+          "title": "Max Depth",
+          "type": "integer"
+        },
+        "max_entries": {
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Max Entries",
+          "type": "integer"
+        },
+        "relative_path": {
+          "maxLength": 1024,
+          "minLength": 0,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "root_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Root Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root_id",
+        "relative_path",
+        "max_depth",
+        "max_entries"
+      ],
+      "title": "ListDirectoryPayload",
+      "type": "object"
+    },
+    "PatchHunk": {
+      "additionalProperties": false,
+      "properties": {
+        "delete_line_count": {
+          "maximum": 10000,
+          "minimum": 0,
+          "title": "Delete Line Count",
+          "type": "integer"
+        },
+        "expected_text": {
+          "maxLength": 65536,
+          "minLength": 0,
+          "title": "Expected Text",
+          "type": "string"
+        },
+        "replacement_text": {
+          "maxLength": 65536,
+          "minLength": 0,
+          "title": "Replacement Text",
+          "type": "string"
+        },
+        "start_line": {
+          "minimum": 1,
+          "title": "Start Line",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start_line",
+        "delete_line_count",
+        "expected_text",
+        "replacement_text"
+      ],
+      "title": "PatchHunk",
+      "type": "object"
+    },
+    "ReadTextAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "read_text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/ReadTextPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "ReadTextAction",
+      "type": "object"
+    },
+    "ReadTextPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "end_line": {
+          "minimum": 1,
+          "title": "End Line",
+          "type": "integer"
+        },
+        "max_bytes": {
+          "maximum": 1048576,
+          "minimum": 1,
+          "title": "Max Bytes",
+          "type": "integer"
+        },
+        "relative_path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "root_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Root Id",
+          "type": "string"
+        },
+        "start_line": {
+          "minimum": 1,
+          "title": "Start Line",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "root_id",
+        "relative_path",
+        "start_line",
+        "end_line",
+        "max_bytes"
+      ],
+      "title": "ReadTextPayload",
+      "type": "object"
+    },
+    "RequestReviewAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "request_review",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/RequestReviewPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "RequestReviewAction",
+      "type": "object"
+    },
+    "RequestReviewPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "uncovered": {
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 0,
+          "title": "Uncovered",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary",
+        "uncovered"
+      ],
+      "title": "RequestReviewPayload",
+      "type": "object"
+    },
+    "RunCommandAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "run_command",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/RunCommandPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "RunCommandAction",
+      "type": "object"
+    },
+    "RunCommandPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "additionalProperties": {
+            "maxLength": 1024,
+            "minLength": 0,
+            "type": "string"
+          },
+          "maxProperties": 32,
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Arguments",
+          "type": "object"
+        },
+        "cwd_relative_path": {
+          "maxLength": 1024,
+          "minLength": 0,
+          "title": "Cwd Relative Path",
+          "type": "string"
+        },
+        "cwd_root_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Cwd Root Id",
+          "type": "string"
+        },
+        "template_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Template Id",
+          "type": "string"
+        },
+        "timeout_ms": {
+          "maximum": 600000,
+          "minimum": 1000,
+          "title": "Timeout Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "template_id",
+        "arguments",
+        "cwd_root_id",
+        "cwd_relative_path",
+        "timeout_ms"
+      ],
+      "title": "RunCommandPayload",
+      "type": "object"
+    },
+    "RunValidationAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "run_validation",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/RunValidationPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "RunValidationAction",
+      "type": "object"
+    },
+    "RunValidationPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "target_paths": {
+          "items": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Target Paths",
+          "type": "array"
+        },
+        "validator_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Validator Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "validator_id",
+        "target_paths"
+      ],
+      "title": "RunValidationPayload",
+      "type": "object"
+    },
+    "SearchLiteralAction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Action Id",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "search_literal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/SearchLiteralPayload"
+        },
+        "reason_summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Reason Summary",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "run_id",
+        "generation",
+        "reason_summary",
+        "kind",
+        "payload"
+      ],
+      "title": "SearchLiteralAction",
+      "type": "object"
+    },
+    "SearchLiteralPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "globs": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 0,
+          "title": "Globs",
+          "type": "array"
+        },
+        "max_results": {
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Max Results",
+          "type": "integer"
+        },
+        "query": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        },
+        "relative_path": {
+          "maxLength": 1024,
+          "minLength": 0,
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "root_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Root Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root_id",
+        "relative_path",
+        "query",
+        "globs",
+        "max_results"
+      ],
+      "title": "SearchLiteralPayload",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "apply_patch": "#/$defs/ApplyPatchAction",
+      "git_inspect": "#/$defs/GitInspectAction",
+      "list_directory": "#/$defs/ListDirectoryAction",
+      "read_text": "#/$defs/ReadTextAction",
+      "request_review": "#/$defs/RequestReviewAction",
+      "run_command": "#/$defs/RunCommandAction",
+      "run_validation": "#/$defs/RunValidationAction",
+      "search_literal": "#/$defs/SearchLiteralAction"
+    },
+    "propertyName": "kind"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ListDirectoryAction"
+    },
+    {
+      "$ref": "#/$defs/ReadTextAction"
+    },
+    {
+      "$ref": "#/$defs/SearchLiteralAction"
+    },
+    {
+      "$ref": "#/$defs/ApplyPatchAction"
+    },
+    {
+      "$ref": "#/$defs/GitInspectAction"
+    },
+    {
+      "$ref": "#/$defs/RunCommandAction"
+    },
+    {
+      "$ref": "#/$defs/RunValidationAction"
+    },
+    {
+      "$ref": "#/$defs/RequestReviewAction"
+    }
+  ]
+}
