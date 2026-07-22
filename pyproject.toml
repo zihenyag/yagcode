@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yagcode"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.116.1",
+  "httpx==0.28.1",
+  "keyring==25.6.0",
+  "platformdirs==4.3.8",
+  "pydantic==2.11.7",
+  "uvicorn==0.35.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy==1.17.0",
+  "pyinstaller==6.14.2",
+  "pytest==8.4.1",
+  "pytest-asyncio==1.1.0",
+  "pytest-cov==6.2.1",
+  "ruff==0.12.4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yagcode"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src/yagcode"]

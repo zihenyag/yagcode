@@ -1,0 +1,20 @@
+{
+  "name": "yagcode",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.14 <23"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test:all": "node scripts/test-all.mjs",
+    "test:runners": "node --test tests/bootstrap/test_node_runners.mjs",
+    "test:python": "node scripts/run-python.mjs -m pytest",
+    "lint:python": "node scripts/run-python.mjs -m ruff check src tests scripts",
+    "typecheck:python": "node scripts/run-python.mjs -m mypy",
+    "scan:secrets": "node scripts/run-python.mjs scripts/scan_secrets.py"
+  }
+}
