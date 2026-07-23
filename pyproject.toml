@@ -31,6 +31,10 @@ packages = ["src/yagcode"]
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
+python_files = ["test_*.py"]
+markers = [
+  "native_sandbox: requires the matching host OS sandbox backend",
+]
 
 [tool.ruff]
 target-version = "py312"
