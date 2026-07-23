@@ -1,0 +1,37 @@
+{
+  "snapshot": {
+    "run_id": "run-basic",
+    "generation": 0,
+    "provider": "openai",
+    "model": "test-model",
+    "budget_version": 1,
+    "feedback_codes": [],
+    "context_items": [
+      {
+        "kind": "task",
+        "source_id": "runtime-loop",
+        "content_ref": "project:runtime-context",
+        "content_hash": "sha256:basic-task"
+      }
+    ]
+  },
+  "provider_candidate": {
+    "kind": "request_review",
+    "action_id": "review-basic",
+    "run_id": "run-basic",
+    "generation": 0,
+    "reason_summary": "candidate is ready for review",
+    "payload": {
+      "summary": "ready",
+      "uncovered": []
+    }
+  },
+  "expected_events": [
+    "context:generation=0",
+    "provider:openai:test-model:generation=0",
+    "parse:request_review",
+    "policy:ALLOW",
+    "dispatch:request_review:SUCCEEDED",
+    "feedback:TOOL_SUCCEEDED"
+  ]
+}
