@@ -1,0 +1,155 @@
+{
+  "$defs": {
+    "ProjectView": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "project",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "project_id": {
+          "title": "Project Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "project_id",
+        "name"
+      ],
+      "title": "ProjectView",
+      "type": "object"
+    },
+    "ReviewView": {
+      "additionalProperties": false,
+      "properties": {
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "review",
+          "title": "Kind",
+          "type": "string"
+        },
+        "review_id": {
+          "title": "Review Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "NOT_READY",
+            "INCOMPLETE",
+            "READY",
+            "ACCEPTING",
+            "ACCEPTED",
+            "REJECTED",
+            "CONFLICT",
+            "RECOVERY_REQUIRED"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "review_id",
+        "state",
+        "generation",
+        "summary"
+      ],
+      "title": "ReviewView",
+      "type": "object"
+    },
+    "RunView": {
+      "additionalProperties": false,
+      "properties": {
+        "generation": {
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "run",
+          "title": "Kind",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "run_id",
+        "state",
+        "generation"
+      ],
+      "title": "RunView",
+      "type": "object"
+    },
+    "TaskView": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "task",
+          "title": "Kind",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "task_id",
+        "state"
+      ],
+      "title": "TaskView",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "discriminator": {
+    "mapping": {
+      "project": "#/$defs/ProjectView",
+      "review": "#/$defs/ReviewView",
+      "run": "#/$defs/RunView",
+      "task": "#/$defs/TaskView"
+    },
+    "propertyName": "kind"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ReviewView"
+    },
+    {
+      "$ref": "#/$defs/RunView"
+    },
+    {
+      "$ref": "#/$defs/TaskView"
+    },
+    {
+      "$ref": "#/$defs/ProjectView"
+    }
+  ]
+}
