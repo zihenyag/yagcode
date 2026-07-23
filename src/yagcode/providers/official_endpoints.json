@@ -1,0 +1,26 @@
+{
+  "manifest_version": 1,
+  "retrieved_at": "2026-07-23",
+  "providers": {
+    "openai": {
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "docs_url": "https://platform.openai.com/docs/api-reference/responses"
+    },
+    "qwen": {
+      "method": "POST",
+      "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      "docs_url": "https://www.alibabacloud.com/help/en/model-studio/compatibility-of-openai-with-dashscope"
+    },
+    "glm": {
+      "method": "POST",
+      "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+      "docs_url": "https://docs.bigmodel.cn/api-reference/model-api/chat-completion"
+    },
+    "deepseek": {
+      "method": "POST",
+      "url": "https://api.deepseek.com/chat/completions",
+      "docs_url": "https://api-docs.deepseek.com/api/create-chat-completion"
+    }
+  }
+}
