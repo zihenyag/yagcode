@@ -4,7 +4,7 @@
 !.env.example
 *.key
 *.pem
-secrets/
+/secrets/
 
 # Local harness state and databases
 .flakemedic/
