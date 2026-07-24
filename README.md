@@ -16,7 +16,8 @@ YagCode 期末项目：Coding Agent Harness。
 - 真实产品采用 Electron 桌面壳；Node.js/TypeScript main process 负责窗口、目录选择、通知、关闭拦截、sidecar 生命周期和安装包，不承载 Agent loop。
 - React + TypeScript + Vite renderer 负责 UI，并启用 `contextIsolation`、sandbox、严格 CSP、禁用 `nodeIntegration`；preload 只暴露最小 typed IPC。
 - Python Harness 打包为平台 sidecar，由 Electron 启动并监控；FastAPI 在随机 loopback 端口提供带随机握手令牌的 HTTP/SSE API。
-- macOS 与 Windows 复用 Electron、React 和 Python 源码；GitHub Release 是唯一桌面分发渠道，每个平台只要求用户下载一个安装产物：macOS 13+ Apple Silicon `.dmg` 或 Windows 10/11 x64 NSIS `.exe`。这里的“单文件”指 Release 下载物，安装后的 App 可以包含 Electron、renderer 和 Python sidecar 等多个文件；不支持 macOS Intel，也不构建 universal binary。
+- CLI 是独立产品入口：用户运行 `yagcode` 默认进入专属终端 TUI，像本地 Coding Agent 工作台一样提供对话、Plan、模型、diff、审批、记忆和审计；诊断子命令只作为辅助路径。
+- macOS 与 Windows 复用 Electron、React 和 Python 源码；GitHub Release 是唯一产品分发渠道，但桌面端和 CLI 端分开打包。桌面端每个平台只要求用户下载一个安装产物：macOS 13+ Apple Silicon `.dmg` 或 Windows 10/11 x64 NSIS `.exe`；CLI 端提供独立 asset，安装或解包后暴露 `yagcode` 命令，不要求先安装桌面 App。这里的“单文件”指 Release 下载物/安装物，安装后的 App 或 CLI 目录可以包含多个文件；不支持 macOS Intel，也不构建 universal binary。
 - 老师已明确项目所称 WebUI 就是 GitHub Pages 产品落地页；页面只提供产品介绍、截图、Bilibili 讲解和 Release/README/源码链接，不要求也不提供在线 demo、浏览器 Agent、任务输入、用户文件/key 或 shell。该方案已合规，但尚未实现或部署。
 - 默认验证策略可由用户覆盖，标准级要求复现原问题、目标与相关测试通过、静态检查通过且 diff 合规。
 - 目标仓库按语言无关方式处理；测试、lint、类型检查和构建命令由项目配置声明并进入 allowlist。
