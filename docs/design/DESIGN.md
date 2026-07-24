@@ -4,11 +4,11 @@
 
 ## 1. Visual Theme & Atmosphere
 
-证据优先的本地工程工作台。界面严肃、紧凑、中文优先，像 coding agent 控制台而不是营销后台或全屏聊天。
+证据优先的本地工程工作台。界面严肃、紧凑、中文优先，尽量贴近 desktop agent 本地桌面应用的克制工程工具感，而不是营销后台、全屏聊天或夸张 demo。
 
 ## 2. Color
 
-沿用 graphite/slate 深色工程基调，蓝色作为主操作/焦点，绿色表示验证通过，琥珀表示等待/审批，红色表示危险。diff 和风险必须同时用文字/符号/图标表达，不能只靠颜色。
+沿用 graphite/slate 深色工程基调，蓝色作为主操作/焦点，绿色表示验证通过，琥珀表示等待/审批，红色表示危险。整体色彩应比 design tool 原型更低调，更接近 desktop agent 本地工具的低饱和状态表达。diff 和风险必须同时用文字/符号/图标表达，不能只靠颜色。
 
 ## 3. Typography
 
@@ -24,7 +24,7 @@
 
 ## 6. Components
 
-第一批组件为 `StatusBadge`、`EvidenceList`、`DangerPanel`、`DiffSummary`。design tool 单文件里的视觉片段只能作为参考，最终必须拆成可测试 React/TypeScript 组件。
+第一批组件为 `StatusBadge`、`EvidenceList`、`DangerPanel`、`DiffSummary`。design tool 单文件里的视觉片段只能作为参考，最终必须拆成可测试 React/TypeScript 组件；组件外观优先采用 local-engineering 的平实边框、紧凑列表、清晰状态和弱装饰。
 
 ## 7. Motion & Interaction
 
@@ -36,4 +36,4 @@
 
 ## 9. Anti-patterns
 
-禁止 CDN/Babel runtime 原型进入产品；禁止全屏 chat-only；禁止隐藏 diff/验证/审批；禁止紫蓝 AI 渐变和玻璃拟态作为主风格；禁止在 UI、日志、截图或 fixture 中显示凭据原文。
+禁止 CDN/Babel runtime 原型进入产品；禁止全屏 chat-only；禁止隐藏 diff/验证/审批；禁止紫蓝 AI 渐变和玻璃拟态作为主风格；禁止复制 third-party product 品牌、商标、精确布局或专有 UI；禁止在 UI、日志、截图或 fixture 中显示凭据原文。
