@@ -1,0 +1,28 @@
+{
+  "name": "@yagcode/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./validate": "./src/validate.ts",
+    "./fixtures": "./src/generated/fixtures.ts"
+  },
+  "scripts": {
+    "generate": "node scripts/generate-api-types.mjs --write",
+    "check:generated": "node scripts/generate-api-types.mjs --check",
+    "check:contract": "node scripts/check-contract.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "8.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.1.0",
+    "json-schema-to-typescript": "15.0.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}

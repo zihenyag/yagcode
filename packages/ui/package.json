@@ -1,0 +1,31 @@
+{
+  "name": "@yagcode/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./public": "./src/public.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./desktop": "./src/desktop.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "7.0.0",
+    "@testing-library/react": "16.3.0",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "axe-core": "4.10.3",
+    "jsdom": "26.1.0",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}
