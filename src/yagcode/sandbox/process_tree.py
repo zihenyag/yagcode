@@ -6,8 +6,24 @@ import os
 import signal
 import subprocess
 import time
+from collections.abc import Callable
+from typing import cast
 
 from .base import ProcessHandle, ReconciliationResult, TerminationResult
+
+
+def _killpg() -> Callable[[int, int], None]:
+    kill_process_group = getattr(os, "killpg", None)
+    if not callable(kill_process_group):
+        raise OSError("PROCESS_GROUP_UNAVAILABLE")
+    return cast(Callable[[int, int], None], kill_process_group)
+
+
+def _signal_number(name: str) -> int:
+    value = getattr(signal, name, None)
+    if not isinstance(value, int):
+        raise OSError("PROCESS_SIGNAL_UNAVAILABLE")
+    return int(value)
 
 
 def reconcile_process(handle: ProcessHandle) -> ReconciliationResult:
@@ -26,7 +42,7 @@ def terminate_process_tree(handle: ProcessHandle) -> TerminationResult:
 
     def group_gone() -> bool:
         try:
-            os.killpg(pgid, 0)
+            _killpg()(pgid, 0)
         except ProcessLookupError:
             return True
         except OSError:
@@ -41,7 +57,7 @@ def terminate_process_tree(handle: ProcessHandle) -> TerminationResult:
         return group_gone()
 
     try:
-        os.killpg(pgid, signal.SIGTERM)
+        _killpg()(pgid, _signal_number("SIGTERM"))
     except OSError:
         return TerminationResult("PROCESS_TREE_TERMINATION_UNCONFIRMED", False)
     try:
@@ -51,7 +67,7 @@ def terminate_process_tree(handle: ProcessHandle) -> TerminationResult:
     if wait_for_group(time.monotonic() + 5):
         return TerminationResult("PROCESS_TREE_TERMINATED", True)
     try:
-        os.killpg(pgid, signal.SIGKILL)
+        _killpg()(pgid, _signal_number("SIGKILL"))
     except OSError:
         return TerminationResult("PROCESS_TREE_TERMINATION_UNCONFIRMED", False)
     try:

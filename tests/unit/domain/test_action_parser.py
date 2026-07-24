@@ -488,8 +488,18 @@ def test_search_literal_strict_contract(
         (("payload", "hunks", 0, "start_line"), 0, "ACTION_BOUND_INVALID"),
         (("payload", "hunks", 0, "delete_line_count"), -1, "ACTION_BOUND_INVALID"),
         (("payload", "hunks", 0, "delete_line_count"), 10_001, "ACTION_BOUND_INVALID"),
-        (("payload", "hunks", 0, "expected_text"), "x" * 65_537, "ACTION_BOUND_INVALID"),
-        (("payload", "hunks", 0, "replacement_text"), "x" * 65_537, "ACTION_BOUND_INVALID"),
+        pytest.param(
+            ("payload", "hunks", 0, "expected_text"),
+            "x" * 65_537,
+            "ACTION_BOUND_INVALID",
+            id="expected_text_too_long",
+        ),
+        pytest.param(
+            ("payload", "hunks", 0, "replacement_text"),
+            "x" * 65_537,
+            "ACTION_BOUND_INVALID",
+            id="replacement_text_too_long",
+        ),
     ],
 )
 def test_apply_patch_strict_contract(

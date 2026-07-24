@@ -7,6 +7,8 @@ able to prove its own report interpretation before any backend exists.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+import sys
 from typing import Literal
 
 import pytest
@@ -66,7 +68,33 @@ def pytest_configure(config: pytest.Config) -> None:
     config._yagcode_native_probe_mismatches = 0  # type: ignore[attr-defined]
 
 
+def platform_deselection_markers(
+    platform: str = sys.platform,
+    os_name: str = os.name,
+) -> tuple[str, ...]:
+    """Return collection-only platform markers that cannot execute on this host."""
+
+    markers: list[str] = []
+    if os_name != "posix":
+        markers.append("posix_only")
+    if platform != "darwin":
+        markers.append("macos_only")
+    return tuple(markers)
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    blocked_markers = platform_deselection_markers()
+    if blocked_markers:
+        selected: list[pytest.Item] = []
+        deselected: list[pytest.Item] = []
+        for item in items:
+            if any(item.get_closest_marker(marker) is not None for marker in blocked_markers):
+                deselected.append(item)
+            else:
+                selected.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+            items[:] = selected
     if not config.getoption("--require-native-probe"):
         return
     config._yagcode_native_probe_mismatches = sum(  # type: ignore[attr-defined]

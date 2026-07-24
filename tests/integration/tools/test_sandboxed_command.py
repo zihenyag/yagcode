@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -36,7 +37,7 @@ def _action(
 
 
 def test_owned_template_oracle_rejects_unknown_extra_args_and_caps_timeout() -> None:
-    templates = {"unit": ("/usr/bin/true", ("--name={name}",), ("name",), 1_000)}
+    templates = {"unit": (sys.executable, ("--name={name}",), ("name",), 1_000)}
     assert "missing" not in templates
     assert set({"name", "extra"}) != set(templates["unit"][2])
     assert min(9_000, templates["unit"][3]) == 1_000
@@ -73,7 +74,7 @@ def _adapter(tmp_path: Path):
             (
                 commands.CommandTemplate(
                     "unit",
-                    "/usr/bin/true",
+                    sys.executable,
                     ("--name={name}",),
                     ("name",),
                     1_000,
@@ -95,7 +96,7 @@ def test_registered_command_is_attested_sanitized_and_confined(tmp_path: Path) -
     assert result.status is ToolStatus.SUCCEEDED
     request, observed_attestation = sandbox.requests[0]
     assert observed_attestation is attestation
-    assert request.process.executable == "/usr/bin/true"
+    assert request.process.executable == sys.executable
     assert request.process.argv == ("--name=ok",)
     assert request.cwd == shadow / "nested"
     assert request.environment == {"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"}

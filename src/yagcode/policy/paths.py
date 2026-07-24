@@ -80,6 +80,13 @@ def _write_all(descriptor: int, content: bytes) -> None:
         view = view[written:]
 
 
+def _required_os_flag(name: str) -> int:
+    value = getattr(os, name, None)
+    if not isinstance(value, int):
+        raise PathSecurityError("UNSAFE_PATH_PRIMITIVE_UNAVAILABLE")
+    return value
+
+
 class SecurePathResolver:
     """Resolve a candidate only beneath one non-link trusted root."""
 
@@ -111,7 +118,7 @@ class SecurePathResolver:
         return source, relative.parts
 
     def _open_parent(self, parent_parts: tuple[str, ...]) -> tuple[int, tuple[FileIdentity, ...]]:
-        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        flags = os.O_RDONLY | _required_os_flag("O_DIRECTORY") | _required_os_flag("O_NOFOLLOW")
         descriptor = os.open(self._root, flags)
         identities = [FileIdentity.from_stat(os.fstat(descriptor))]
         try:
@@ -165,7 +172,11 @@ class SecurePathResolver:
                     raise PathSecurityError("UNSAFE_PATH_HARDLINK_TARGET")
                 target_identity = FileIdentity.from_stat(target_stat)
                 target_type = _file_type(target_stat)
-                target_fd = os.open(relative.parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=descriptor)
+                target_fd = os.open(
+                    relative.parts[-1],
+                    os.O_RDONLY | _required_os_flag("O_NOFOLLOW"),
+                    dir_fd=descriptor,
+                )
                 try:
                     precondition_hash = _digest_descriptor(target_fd)
                 finally:
@@ -229,7 +240,7 @@ class SecurePathDispatcher:
                     return PathWriteResult("STALE_TARGET")
                 fd = os.open(
                     target.basename,
-                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | _required_os_flag("O_NOFOLLOW"),
                     0o600,
                     dir_fd=descriptor,
                 )
@@ -241,7 +252,11 @@ class SecurePathDispatcher:
                 return PathWriteResult("WRITTEN")
             if target.target_identity is None or not stat.S_ISREG(existing.st_mode):
                 return PathWriteResult("STALE_TARGET")
-            fd = os.open(target.basename, os.O_RDWR | os.O_NOFOLLOW, dir_fd=descriptor)
+            fd = os.open(
+                target.basename,
+                os.O_RDWR | _required_os_flag("O_NOFOLLOW"),
+                dir_fd=descriptor,
+            )
             try:
                 current = os.fstat(fd)
                 if FileIdentity.from_stat(current) != target.target_identity or current.st_nlink != 1:

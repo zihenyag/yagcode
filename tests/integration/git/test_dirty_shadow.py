@@ -53,12 +53,13 @@ def test_shadow_uses_linked_worktree_private_index(tmp_path: Path) -> None:
     git(root, "init")
     git(root, "config", "user.name", "test")
     git(root, "config", "user.email", "test@example.invalid")
-    (root / "tracked.txt").write_text("head\n")
+    git(root, "config", "core.autocrlf", "false")
+    (root / "tracked.txt").write_bytes(b"head\n")
     git(root, "add", "tracked.txt")
     git(root, "commit", "-m", "initial")
     linked = tmp_path / "linked"
     git(root, "worktree", "add", str(linked), "-b", "linked-branch")
-    (linked / "linked-staged.txt").write_text("linked index\n")
+    (linked / "linked-staged.txt").write_bytes(b"linked index\n")
     git(linked, "add", "linked-staged.txt")
 
     shadow = importlib.import_module("yagcode.git.shadow")

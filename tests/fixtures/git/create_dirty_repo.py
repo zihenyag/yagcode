@@ -9,10 +9,42 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-def git(root: Path, *argv: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", os.fspath(root), *argv], check=True, text=True, capture_output=True
+def _git_environment() -> dict[str, str]:
+    allowed = {"HOME", "PATH", "SystemRoot", "TEMP", "TMP"}
+    environment = {key: value for key, value in os.environ.items() if key in allowed}
+    environment.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_PAGER": "cat",
+            "GIT_EDITOR": ":",
+            "GIT_ASKPASS": os.devnull,
+            "GIT_OPTIONAL_LOCKS": "0",
+        }
     )
+    return environment
+
+
+def run_git(
+    root: Path,
+    *argv: str,
+    input: str | None = None,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", os.fspath(root), *argv],
+        check=check,
+        text=True,
+        capture_output=True,
+        env=_git_environment(),
+        input=input,
+        shell=False,
+    )
+
+
+def git(root: Path, *argv: str, input: str | None = None) -> str:
+    result = run_git(root, *argv, input=input)
     return result.stdout
 
 
@@ -59,15 +91,16 @@ def create_dirty_repo(root: Path) -> DirtyRepo:
     git(root, "init")
     git(root, "config", "user.name", "test")
     git(root, "config", "user.email", "test@example.invalid")
-    (root / "tracked.txt").write_text("head\n")
-    (root / ".gitignore").write_text("ignored.txt\n")
+    git(root, "config", "core.autocrlf", "false")
+    (root / "tracked.txt").write_bytes(b"head\n")
+    (root / ".gitignore").write_bytes(b"ignored.txt\n")
     git(root, "add", ".")
     git(root, "commit", "-m", "initial")
-    (root / "tracked.txt").write_text("worktree\n")
-    (root / "staged.txt").write_text("index\n")
+    (root / "tracked.txt").write_bytes(b"worktree\n")
+    (root / "staged.txt").write_bytes(b"index\n")
     git(root, "add", "staged.txt")
-    (root / "untracked.txt").write_text("untracked\n")
-    (root / "ignored.txt").write_text("ignored\n")
+    (root / "untracked.txt").write_bytes(b"untracked\n")
+    (root / "ignored.txt").write_bytes(b"ignored\n")
     entries = tuple(
         (line.split()[1], line.split()[3])
         for line in git(root, "ls-files", "--stage").splitlines()

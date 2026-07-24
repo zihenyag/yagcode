@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import importlib
 import json
+import os
 import stat
 import threading
 from collections.abc import Callable
@@ -544,7 +545,6 @@ def test_equal_parent_sync_faults_are_unconfirmed_without_rewrite(
 @pytest.mark.parametrize("fault", ["write", "short_write", "flush", "fileno", "fsync", "close"])
 def test_staging_faults_cleanup_without_replacing_existing_target(tmp_path: Path, fault: str) -> None:
     atomic, schema, _ = load_schema_export_contract()
-    del atomic
     target = tmp_path / "action.schema.json"
     target.write_bytes(b"old")
     ops = _default_ops(schema)
@@ -590,7 +590,12 @@ def test_staging_faults_cleanup_without_replacing_existing_target(tmp_path: Path
     fault_ops = replace(ops, temp_factory=factory, fsync=fsync, replace=forbidden_replace)
     assert schema.export_schema(target, "check-or-write", fault_ops, trusted_root=tmp_path) == 2
     assert replace_calls == 0
-    assert staged_paths and not staged_paths[0].exists()
+    assert staged_paths
+    if fault == "close" and os.name == "nt":
+        assert staged_paths[0].exists()
+        assert atomic.last_residual_staging_path() == staged_paths[0]
+    else:
+        assert not staged_paths[0].exists()
     assert target.read_bytes() == b"old"
 
 

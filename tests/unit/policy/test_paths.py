@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.posix_only
+
 
 def _paths_production() -> object:
     try:

@@ -11,6 +11,8 @@ import pytest
 from yagcode.domain.actions import ApplyPatchAction, ApplyPatchPayload, PatchHunk
 from yagcode.domain.results import SideEffectState, ToolStatus
 
+pytestmark = pytest.mark.posix_only
+
 
 def _action(
     base: bytes,

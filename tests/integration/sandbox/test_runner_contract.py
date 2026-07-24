@@ -59,6 +59,7 @@ def test_unverified_sandbox_never_starts_process(tmp_path: Path) -> None:
     assert backend.spawn_count == 0
 
 
+@pytest.mark.posix_only
 def test_attestation_rejects_shadow_root_replaced_by_symlink_before_start(tmp_path: Path) -> None:
     production = _sandbox_production()
     shadow = tmp_path / "shadow"
@@ -97,6 +98,7 @@ def test_attestation_rejects_shadow_root_replaced_by_symlink_before_start(tmp_pa
     assert backend.spawn_count == 0
 
 
+@pytest.mark.posix_only
 def test_terminate_tree_reaps_a_persistent_child_and_reconcile_is_stable(tmp_path: Path) -> None:
     production = _sandbox_production()
     process_tree = importlib.import_module("yagcode.sandbox.process_tree")
@@ -129,6 +131,7 @@ def test_terminate_tree_reaps_a_persistent_child_and_reconcile_is_stable(tmp_pat
             process.wait()
 
 
+@pytest.mark.macos_only
 def test_scope_replaced_before_self_test_returns_stable_failure_without_spawn(tmp_path: Path) -> None:
     production = _sandbox_production()
     macos = importlib.import_module("yagcode.sandbox.macos")
@@ -167,6 +170,7 @@ def test_reconcile_running_process_is_nonblocking_and_stable() -> None:
         process.wait()
 
 
+@pytest.mark.posix_only
 def test_terminate_tree_reaps_child_that_ignores_sigterm_after_parent_exits(tmp_path: Path) -> None:
     production = _sandbox_production()
     process_tree = importlib.import_module("yagcode.sandbox.process_tree")
@@ -201,6 +205,7 @@ def test_terminate_tree_reaps_child_that_ignores_sigterm_after_parent_exits(tmp_
                 pass
 
 
+@pytest.mark.macos_only
 def test_macos_deny_default_profile_has_only_required_python_startup_ipc(tmp_path: Path) -> None:
     production = _sandbox_production()
     macos = importlib.import_module("yagcode.sandbox.macos")
@@ -218,6 +223,7 @@ def test_macos_deny_default_profile_has_only_required_python_startup_ipc(tmp_pat
     assert f'(allow file-read* (subpath "{roots[1]}"))' in profile
 
 
+@pytest.mark.macos_only
 def test_macos_profile_grants_only_literal_ancestors_for_runtime_and_writable_roots(tmp_path: Path) -> None:
     production = _sandbox_production()
     macos = importlib.import_module("yagcode.sandbox.macos")
@@ -239,6 +245,7 @@ def test_macos_profile_grants_only_literal_ancestors_for_runtime_and_writable_ro
     assert f'(allow file-read* (subpath "{protected}"))' not in profile
 
 
+@pytest.mark.macos_only
 def test_macos_self_test_uses_a_real_protected_canary_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     production = _sandbox_production()
     macos = importlib.import_module("yagcode.sandbox.macos")
@@ -264,6 +271,7 @@ def test_macos_self_test_uses_a_real_protected_canary_file(tmp_path: Path, monke
     assert not list(protected.glob(".yagcode-self-test-canary-*"))
 
 
+@pytest.mark.macos_only
 def test_macos_self_test_missing_attestation_receipt_is_a_stable_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -283,6 +291,7 @@ def test_macos_self_test_missing_attestation_receipt_is_a_stable_failure(
     assert attestation.reason == "SANDBOX_CANARY_FAILED"
 
 
+@pytest.mark.macos_only
 def test_macos_canary_fails_when_an_unsandboxed_child_reaches_parent_loopback_listener(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -322,6 +331,7 @@ def test_macos_canary_fails_when_an_unsandboxed_child_reaches_parent_loopback_li
     assert attestation.reason == "SANDBOX_CANARY_FAILED"
 
 
+@pytest.mark.macos_only
 def test_macos_canary_uses_challenge_bound_stolen_path_without_touching_legacy_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

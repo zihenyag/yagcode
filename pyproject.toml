@@ -34,6 +34,8 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 markers = [
   "native_sandbox: requires the matching host OS sandbox backend",
+  "posix_only: requires POSIX descriptor, process-group, symlink, or hardlink semantics",
+  "macos_only: requires the macOS sandbox-exec backend or macOS sandbox profile semantics",
 ]
 
 [tool.ruff]

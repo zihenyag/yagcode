@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from conftest import NativeProbeReport, validate_native_probe_reports
+from conftest import NativeProbeReport, platform_deselection_markers, validate_native_probe_reports
 
 
 def test_owned_native_probe_report_oracle_rejects_every_escape_hatch() -> None:
@@ -45,7 +45,11 @@ def _native_collection_contract_errors(config: dict[str, object]) -> tuple[str, 
 def test_owned_native_collection_contract_oracle_rejects_relaxations() -> None:
     valid = {
         "python_files": ["test_*.py"],
-        "markers": ["native_sandbox: requires the matching host OS sandbox backend"],
+        "markers": [
+            "native_sandbox: requires the matching host OS sandbox backend",
+            "posix_only: requires POSIX descriptor semantics",
+            "macos_only: requires the macOS sandbox-exec backend",
+        ],
         "addopts": "-ra --strict-markers",
     }
     assert _native_collection_contract_errors(valid) == ()
@@ -64,6 +68,12 @@ def test_native_collection_contract_matches_repository_configuration() -> None:
         "ini_options"
     ]
     assert _native_collection_contract_errors(config) == ()
+
+
+def test_platform_deselection_rules_are_collection_only_and_host_specific() -> None:
+    assert platform_deselection_markers("darwin", "posix") == ()
+    assert platform_deselection_markers("linux", "posix") == ("macos_only",)
+    assert platform_deselection_markers("win32", "nt") == ("posix_only", "macos_only")
 
 
 def _run_isolated_probe_guard(tmp_path: Path, source: str, conftest_source: str | None = None) -> subprocess.CompletedProcess[str]:

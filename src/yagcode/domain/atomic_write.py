@@ -9,7 +9,7 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import BinaryIO, Literal, Protocol
 
 
 @dataclass(frozen=True)
@@ -112,11 +112,40 @@ class _DirectoryHandle:
 
 
 def _identity_from_stat(info: os.stat_result) -> FileIdentity:
-    if os.name != "posix":
-        # The standard library does not expose a no-follow Windows directory
-        # handle with a comparable volume/file/reparse identity contract.
-        raise OSError("Windows no-follow identity adapter is not provable")
-    return FileIdentity("posix", (info.st_dev, info.st_ino))
+    if os.name == "posix":
+        return FileIdentity("posix", (info.st_dev, info.st_ino))
+    if os.name == "nt":
+        return _windows_identity(info)
+    raise OSError("no-follow identity adapter unavailable")
+
+
+def _required_os_flag(name: str) -> int:
+    value = getattr(os, name, None)
+    if not isinstance(value, int):
+        raise OSError("no-follow adapter unavailable")
+    return value
+
+
+def _windows_reparse(info: os.stat_result) -> bool:
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    return bool(getattr(info, "st_file_attributes", 0) & reparse_flag)
+
+
+def _windows_identity(info: os.stat_result) -> FileIdentity:
+    if _windows_reparse(info):
+        raise OSError("Windows reparse point rejected")
+    if stat.S_ISREG(info.st_mode) and getattr(info, "st_nlink", 1) != 1:
+        raise OSError("Windows hardlink target rejected")
+    return FileIdentity(
+        "windows",
+        (
+            int(info.st_dev),
+            int(info.st_ino),
+            int(getattr(info, "st_file_attributes", 0)),
+            int(getattr(info, "st_reparse_tag", 0)),
+            int(getattr(info, "st_nlink", 1)),
+        ),
+    )
 
 
 def _lstat(path: Path) -> LstatSnapshot:
@@ -125,9 +154,11 @@ def _lstat(path: Path) -> LstatSnapshot:
 
 
 def _open_read_no_follow(path: Path) -> BinaryReadHandle:
+    if os.name == "nt":
+        return _WindowsReadHandle(path)
     if os.name != "posix" or not hasattr(os, "O_NOFOLLOW"):
         raise OSError("no-follow read adapter unavailable")
-    return _ReadHandle(os.open(path, os.O_RDONLY | os.O_NOFOLLOW))
+    return _ReadHandle(os.open(path, os.O_RDONLY | _required_os_flag("O_NOFOLLOW")))
 
 
 def _mkdir(path: Path) -> None:
@@ -140,13 +171,50 @@ def _temp_factory(parent: Path) -> StagedFile:
 
 
 def _open_parent_no_follow(path: Path) -> DirectorySyncHandle:
+    if os.name == "nt":
+        return _WindowsDirectoryHandle(path)
     if os.name != "posix" or not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY"):
         raise OSError("no-follow directory adapter unavailable")
-    return _DirectoryHandle(os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW))
+    return _DirectoryHandle(
+        os.open(
+            path,
+            os.O_RDONLY | _required_os_flag("O_DIRECTORY") | _required_os_flag("O_NOFOLLOW"),
+        )
+    )
 
 
 def _cleanup(path: Path) -> None:
     path.unlink(missing_ok=True)
+
+
+class _WindowsReadHandle:
+    def __init__(self, path: Path) -> None:
+        self._file: BinaryIO = path.open("rb")
+
+    def read(self) -> bytes:
+        return self._file.read()
+
+    def fstat_identity(self) -> FileIdentity:
+        return _identity_from_stat(os.fstat(self._file.fileno()))
+
+    def close(self) -> None:
+        self._file.close()
+
+
+class _WindowsDirectoryHandle:
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._identity = _lstat(path).identity
+
+    def fstat_identity(self) -> FileIdentity:
+        return self._identity
+
+    def sync_entry(self) -> None:
+        if _lstat(self._path).identity != self._identity:
+            raise OSError("Windows parent identity changed")
+
+    def close(self) -> None:
+        return None
 
 
 DEFAULT_OPS = ExportOps(
