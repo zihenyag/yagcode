@@ -81,6 +81,15 @@ function collectOutput(child) {
   return () => Buffer.concat(chunks).toString("utf8").trim();
 }
 
+function waitForProcessExit(child) {
+  return new Promise((resolveWait, rejectWait) => {
+    child.once("exit", (code, signal) => {
+      resolveWait({ code, signal });
+    });
+    child.once("error", rejectWait);
+  });
+}
+
 function nodePackageCommand(kind) {
   if (process.platform !== "win32") return { command: kind, args: [] };
   const script = kind === "npm" ? "npm-cli.js" : "npx-cli.js";
@@ -178,6 +187,10 @@ try {
       });
     });
     console.log("DEV_DESKTOP_SMOKE_OK");
+  } else {
+    const { code, signal } = await waitForProcessExit(electron);
+    if (signal) process.exitCode = 1;
+    else process.exitCode = code ?? 1;
   }
 } finally {
   if (electron) stopProcess(electron);
