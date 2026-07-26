@@ -116,10 +116,10 @@ describe("sidecar client runtime boundary", () => {
     client.subscribe({ profileId: "profile-1", lastSequence: 41, onEvent() {}, onDisconnect() {} });
 
     expect(requests).toEqual([
-      { url: "http://127.0.0.1:49152/api/reviews/review-1", authorization: "Bearer startup-secret-token" },
+      { url: "http://127.0.0.1:49152/api/v1/reviews/review-1", authorization: "Bearer startup-secret-token" },
     ]);
     expect(requests[0]?.url).not.toContain("startup-secret-token");
-    expect(sseRequest?.url).toBe("http://127.0.0.1:49152/api/events?profile_id=profile-1&last_sequence=41");
+    expect(sseRequest?.url).toBe("http://127.0.0.1:49152/api/v1/events?profile_id=profile-1&last_sequence=41");
     expect(sseRequest?.url).not.toContain("startup-secret-token");
     expect(sseRequest?.headers.Authorization).toBe("Bearer startup-secret-token");
   });

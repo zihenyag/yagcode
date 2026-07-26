@@ -1,5 +1,4 @@
 import type { EventEnvelope, RunStatePayload } from "@yagcode/contracts";
-import { validateEventEnvelope } from "@yagcode/contracts/validate";
 
 export class SchemaValidationError extends Error {
   readonly code = "SCHEMA_VALIDATION_FAILED";
@@ -32,15 +31,10 @@ function readGeneration(record: Record<string, unknown>): number | null | undefi
   throw new SchemaValidationError(["/generation must be number or null"]);
 }
 
-function validateEvent(value: unknown): void {
-  const result = validateEventEnvelope(value);
-  if (result.ok === false) throw new SchemaValidationError(result.errors);
-}
-
 export function toEventEnvelope(value: unknown): EventEnvelope {
-  validateEvent(value);
   if (!isRecord(value)) throw new SchemaValidationError(["/ must be object"]);
   const eventType = readString(value, "event_type");
+  if (eventType !== "run.state" && eventType !== "action.intent") throw new SchemaValidationError(["/event_type invalid"]);
   const payloadValue = value.payload;
   if (!isRecord(payloadValue)) throw new SchemaValidationError(["/payload must be object"]);
   if (eventType === "run.state") {

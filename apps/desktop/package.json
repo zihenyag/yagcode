@@ -3,11 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "dist/main/main.js",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && npm run build:main",
+    "build:main": "tsc -p tsconfig.main.json",
+    "dev:renderer": "node scripts/dev-renderer.mjs",
+    "dev:desktop": "node scripts/dev-desktop.mjs",
     "test": "vitest run src/renderer",
-    "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",
+    "lint": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",
+    "start:electron": "electron dist/main/main.js"
   },
   "dependencies": {
     "@yagcode/contracts": "0.1.0",
@@ -16,12 +22,15 @@
     "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.54.1",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "7.0.0",
     "@testing-library/react": "16.3.0",
+    "@types/node": "24.1.0",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "axe-core": "4.10.3",
+    "electron": "37.2.0",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
     "vite": "7.0.4",

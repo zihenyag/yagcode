@@ -130,15 +130,19 @@ describe("workbench test-owned DOM harness", () => {
 });
 
 describe("desktop workbench", () => {
-  it("shows structured review evidence rather than raw chat only", async () => {
+  it("renders a local-engineering conversation workbench instead of a dashboard", async () => {
     const { App } = await loadWorkbenchProduction();
     render(<App client={fixtureClient(fixtureSnapshot("READY"))} />);
+    expect(await screen.findByRole("log", { name: "任务对话" })).toBeVisible();
+    expect(screen.getByText("用户请求")).toBeVisible();
+    expect(screen.getByText("Agent 运行")).toBeVisible();
     expect(await screen.findByRole("heading", { name: "变更审阅" })).toBeVisible();
     expect(screen.getByText("验证证据")).toBeVisible();
     expect(screen.getByText("风险与未覆盖项")).toBeVisible();
     expect(screen.getByRole("button", { name: "接受更改" })).toBeEnabled();
-    expect(screen.getByRole("heading", { name: "记忆" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "审计" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "记忆" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "审计" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "设置" })).toBeNull();
   });
 
   it("disables model changes for every active execution state", async () => {

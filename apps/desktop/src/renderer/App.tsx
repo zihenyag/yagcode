@@ -7,17 +7,15 @@ import { createInitialWorkbenchState, reduceEvent } from "./state/reducer.js";
 import { NavigationPane } from "./views/NavigationPane.js";
 import { TaskPane } from "./views/TaskPane.js";
 import { EvidencePane } from "./views/EvidencePane.js";
-import { SettingsView } from "./views/SettingsView.js";
-import { MemoryView } from "./views/MemoryView.js";
-import { AuditView } from "./views/AuditView.js";
-
-interface YagcodeRendererApi {
-  requestIntentWindow?(intent: { actionId: string; highRisk: boolean }): void;
-}
 
 declare global {
   interface Window {
-    yagcode?: YagcodeRendererApi;
+    yagcode?: {
+      chooseDirectory?(): Promise<unknown>;
+      getStartupConnection?(): Promise<unknown>;
+      notify?(notification: unknown): Promise<unknown>;
+      requestIntentWindow?(intentId: string): Promise<unknown>;
+    };
   }
 }
 
@@ -47,6 +45,7 @@ function applyEventToModel(model: WorkbenchModel, event: unknown): WorkbenchMode
 export function App({ client }: { client: SidecarClient }) {
   const [model, setModel] = useState<WorkbenchModel | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [blockingRuns, setBlockingRuns] = useState<readonly { id: string; state: string; title?: string }[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -94,12 +93,28 @@ export function App({ client }: { client: SidecarClient }) {
     };
   }, [client]);
 
+  useEffect(() => {
+    function onBlockingRuns(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+      if (typeof detail !== "object" || detail === null || !("runs" in detail) || !Array.isArray(detail.runs)) return;
+      setBlockingRuns(
+        detail.runs.filter((run: unknown): run is { id: string; state: string; title?: string } => {
+          if (typeof run !== "object" || run === null) return false;
+          const record = run as Record<string, unknown>;
+          return typeof record.id === "string" && typeof record.state === "string";
+        }),
+      );
+    }
+    window.addEventListener("yagcode:blocking-runs", onBlockingRuns);
+    return () => window.removeEventListener("yagcode:blocking-runs", onBlockingRuns);
+  }, []);
+
   function command(commandValue: WorkbenchCommand) {
     void client.command(commandValue);
   }
 
   function requestIntent(intent: { actionId: string; highRisk: boolean }) {
-    if (intent.highRisk) window.yagcode?.requestIntentWindow?.(intent);
+    if (intent.highRisk) void window.yagcode?.requestIntentWindow?.(intent.actionId);
     else command({ type: "review_intent", payload: intent });
   }
 
@@ -129,10 +144,21 @@ export function App({ client }: { client: SidecarClient }) {
       <NavigationPane model={model.navigation} />
       <TaskPane model={model.task} onCommand={command} />
       <div className="right-column">
+        {blockingRuns.length > 0 ? (
+          <section className="blocking-card" aria-labelledby="blocking-runs-heading" tabIndex={-1}>
+            <h2 id="blocking-runs-heading">运行中的任务</h2>
+            <p>存在活动或已中断 Run，关闭前需要先手动停止。</p>
+            <ul>
+              {blockingRuns.map((run) => (
+                <li key={run.id}>
+                  {run.id} · {run.state}
+                  {run.title ? ` · ${run.title}` : ""}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <EvidencePane model={model.evidence} onIntent={requestIntent} />
-        <SettingsView model={model.settings} />
-        <MemoryView model={model.memory} />
-        <AuditView model={model.audit} />
       </div>
     </main>
   );

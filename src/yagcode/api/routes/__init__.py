@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from yagcode.api.routes import credentials, intents, memory, onboarding, profiles, projects, review, runs, threads
+from yagcode.api.routes import credentials, desktop, intents, memory, onboarding, profiles, projects, review, runs, threads
 
 
 def routers() -> tuple[APIRouter, ...]:
@@ -14,6 +14,7 @@ def routers() -> tuple[APIRouter, ...]:
         threads.router,
         runs.router,
         review.router,
+        desktop.router,
         memory.router,
         credentials.router,
         onboarding.router,

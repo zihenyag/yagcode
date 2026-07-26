@@ -1,10 +1,27 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
+import { createSidecarClient } from "./api/client.js";
 import type { SidecarClient, WorkbenchApiSnapshot, WorkbenchCommand } from "./api/client.js";
 
-interface BootstrapWindow extends Window {
+type BootstrapWindow = Window & {
   yagcodeClient?: SidecarClient;
+  yagcode?: {
+    getStartupConnection?: () => Promise<unknown>;
+    requestIntentWindow?: (intentId: string) => Promise<unknown>;
+  };
+};
+
+interface StartupConnection {
+  baseUrl: string;
+  token: string;
+  connected: boolean;
+}
+
+function isStartupConnection(value: unknown): value is StartupConnection {
+  if (typeof value !== "object" || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.baseUrl === "string" && typeof record.token === "string" && typeof record.connected === "boolean";
 }
 
 function createUnavailableClient(): SidecarClient {
@@ -84,9 +101,27 @@ function createUnavailableClient(): SidecarClient {
 const root = document.getElementById("root");
 if (root === null) throw new Error("ROOT_ELEMENT_MISSING");
 
-const client = (window as BootstrapWindow).yagcodeClient ?? createUnavailableClient();
-createRoot(root).render(
+async function resolveClient(): Promise<SidecarClient> {
+  const bootstrap = window as BootstrapWindow;
+  if (bootstrap.yagcodeClient) return bootstrap.yagcodeClient;
+  const connection = await bootstrap.yagcode?.getStartupConnection?.();
+  if (isStartupConnection(connection) && connection.connected === true && connection.baseUrl.length > 0 && connection.token.length > 0) {
+    return createSidecarClient({ baseUrl: connection.baseUrl, token: connection.token });
+  }
+  return createUnavailableClient();
+}
+
+const rootHandle = createRoot(root);
+rootHandle.render(
   <React.StrictMode>
-    <App client={client} />
+    <App client={createUnavailableClient()} />
   </React.StrictMode>,
 );
+
+void resolveClient().catch(() => createUnavailableClient()).then((client) => {
+  rootHandle.render(
+    <React.StrictMode>
+      <App client={client} />
+    </React.StrictMode>,
+  );
+});

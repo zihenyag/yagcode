@@ -20,27 +20,27 @@ function runStateLabel(state: string): string {
 export function NavigationPane({ model }: { model: NavigationModel }) {
   return (
     <aside className="workbench-pane workbench-pane--navigation" aria-label="档案、项目与线程">
-      <header className="pane-header">
-        <p className="pane-kicker">YagCode</p>
-        <h1>本地 Agent 工作台</h1>
-        <StatusBadge tone={model.runState === "RUNNING" ? "info" : "neutral"} label={runStateLabel(model.runState)} />
+      <div className="sidebar-chrome" aria-label="窗口导航">
+        <span className="traffic-spacer" aria-hidden="true" />
+        <button aria-label="收起侧边栏" className="chrome-button" type="button">⌘</button>
+        <button aria-label="撤回" className="chrome-button" type="button">←</button>
+        <button aria-label="推进" className="chrome-button" type="button">→</button>
+      </div>
+
+      <header className="brand-row">
+        <div>
+          <p className="pane-kicker">YagCode</p>
+          <h1>本地 Agent 工作台</h1>
+        </div>
+        <button aria-label="搜索" className="search-button" type="button">⌕</button>
       </header>
 
-      <section className="nav-section" aria-labelledby="profiles-heading">
-        <h2 id="profiles-heading">档案</h2>
-        <ul className="nav-list">
-          {model.profiles.map((profile) => (
-            <li key={profile.id}>
-              <button className="nav-item nav-item--active" type="button">
-                {profile.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="sidebar-status">
+        <StatusBadge tone={model.runState === "RUNNING" ? "info" : "neutral"} label={runStateLabel(model.runState)} />
+      </div>
 
-      <section className="nav-section" aria-labelledby="projects-heading">
-        <h2 id="projects-heading">项目</h2>
+      <section className="nav-section" aria-labelledby="profiles-heading">
+        <h2 id="profiles-heading">Project</h2>
         <ul className="nav-list">
           {model.projects.map((project) => (
             <li key={project.id}>
@@ -53,7 +53,7 @@ export function NavigationPane({ model }: { model: NavigationModel }) {
       </section>
 
       <section className="nav-section" aria-labelledby="threads-heading">
-        <h2 id="threads-heading">线程</h2>
+        <h2 id="threads-heading">Threads</h2>
         <ul className="nav-list">
           {model.threads.map((thread) => (
             <li key={thread.id}>
@@ -67,6 +67,16 @@ export function NavigationPane({ model }: { model: NavigationModel }) {
           ))}
         </ul>
       </section>
+
+      <div className="profile-dock">
+        <button className="profile-button" type="button">
+          <span className="profile-avatar">AG</span>
+          <span>
+            <strong>{model.profiles[0]?.label ?? "默认档案"}</strong>
+            <small>记忆 · 隐私 · 权限 · 审查 · 设置</small>
+          </span>
+        </button>
+      </div>
     </aside>
   );
 }

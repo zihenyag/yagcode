@@ -18,25 +18,39 @@ export function EvidencePane({ model, onIntent }: EvidencePaneProps) {
   const normalActions = model.approvalActions.filter((action) => !action.highRisk);
   const highRiskActions = model.approvalActions.filter((action) => action.highRisk);
   return (
-    <aside className="workbench-pane workbench-pane--evidence" aria-label="审阅、记忆与审计">
-      <section className="review-section" aria-labelledby="review-heading">
-        <header className="pane-header pane-header--inline">
+    <aside className="workbench-pane workbench-pane--evidence" aria-label="状态与变更">
+      <section className="inspector-section inspector-section--status" aria-labelledby="review-heading">
+        <header className="inspector-header">
           <div>
-            <p className="pane-kicker">Review #{model.review.reviewId}</p>
+            <p className="pane-kicker">Status</p>
             <h2 id="review-heading">变更审阅</h2>
           </div>
           <StatusBadge tone={reviewTone(model.review.state)} label={model.review.state} />
         </header>
         <p className="review-summary">{model.review.summary}</p>
+        <dl className="status-grid" aria-label="当前 bug 状态">
+          <div>
+            <dt>Review</dt>
+            <dd>#{model.review.reviewId}</dd>
+          </div>
+          <div>
+            <dt>Generation</dt>
+            <dd>{model.review.generation}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="inspector-section" aria-labelledby="changes-heading">
+        <h3 id="changes-heading">Changes</h3>
         <DiffSummary filesChanged={model.diff.filesChanged} additions={model.diff.additions} deletions={model.diff.deletions} />
       </section>
 
-      <section className="review-section" aria-labelledby="validation-heading">
+      <section className="inspector-section" aria-labelledby="validation-heading">
         <h3 id="validation-heading">验证证据</h3>
         <EvidenceList items={model.validations} />
       </section>
 
-      <section className="review-section" aria-labelledby="risk-heading">
+      <section className="inspector-section" aria-labelledby="risk-heading">
         <h3 id="risk-heading">风险与未覆盖项</h3>
         <ul className="plain-list">
           {model.risks.map((risk) => (
@@ -48,7 +62,7 @@ export function EvidencePane({ model, onIntent }: EvidencePaneProps) {
         </ul>
       </section>
 
-      <section className="review-section" aria-labelledby="approval-heading">
+      <section className="inspector-section" aria-labelledby="approval-heading">
         <h3 id="approval-heading">审阅操作</h3>
         <div className="button-row button-row--wrap">
           {normalActions.map((action) => (

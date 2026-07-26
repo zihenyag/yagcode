@@ -5,11 +5,22 @@ from __future__ import annotations
 import secrets
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from starlette.requests import Request
 
 from yagcode.api.schemas import ProjectView, RunView
+
+
+RunRecordState: TypeAlias = Literal[
+    "RUNNING",
+    "WAITING_PERMISSION",
+    "WAITING_PRIVACY",
+    "COMPACTING",
+    "STOPPING",
+    "INTERRUPTED",
+    "STOPPED",
+]
 
 
 class ApiDomainError(RuntimeError):
@@ -60,7 +71,7 @@ class RunRecord:
     thread_id: str
     model: str
     generation: int
-    state: Literal["RUNNING", "STOPPED"]
+    state: RunRecordState
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,11 +106,12 @@ class IntentStore:
         return intent
 
     def consume(self, intent_id: str, one_time_token: str) -> PrivilegedActionResult:
-        intent = self._records.pop(intent_id, None)
+        intent = self._records.get(intent_id)
         if intent is None:
             raise ApiDomainError("INTENT_NOT_FOUND", http_status=404)
         if not secrets.compare_digest(intent.one_time_token, one_time_token):
             raise ApiDomainError("INTENT_TOKEN_INVALID", http_status=403)
+        del self._records[intent_id]
         return PrivilegedActionResult(intent.intent_id, intent.intent_type, "EXECUTED")
 
 
@@ -164,6 +176,19 @@ class Services:
         run.generation += 1
         return run
 
+    def blocking_runs(self) -> tuple[RunRecord, ...]:
+        blocking_states = {
+            "RUNNING",
+            "WAITING_PERMISSION",
+            "WAITING_PRIVACY",
+            "COMPACTING",
+            "STOPPING",
+            "INTERRUPTED",
+        }
+        return tuple(
+            run for run in self._runs.values() if run.state in blocking_states
+        )
+
 
 def get_services(request: Request) -> Services:
     services = getattr(request.app.state, "services", None)
@@ -180,6 +205,7 @@ __all__ = [
     "PermissionState",
     "PrivilegedActionResult",
     "RunRecord",
+    "RunRecordState",
     "Services",
     "ThreadRecord",
     "get_services",

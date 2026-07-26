@@ -30,6 +30,15 @@ class SidecarAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         origin = request.headers.get("origin")
+        cors_headers = {
+            "Access-Control-Allow-Origin": self._config.allowed_origin,
+            "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
+            "Access-Control-Allow-Headers": "authorization,content-type,x-yagcode-principal",
+        }
+        if request.method == "OPTIONS":
+            if origin != self._config.allowed_origin:
+                return JSONResponse({"detail": {"reason_code": "SIDECAR_AUTH_REQUIRED"}}, status_code=401)
+            return Response(status_code=204, headers=cors_headers)
         authorization = request.headers.get("authorization", "")
         prefix = "Bearer "
         token = authorization.removeprefix(prefix) if authorization.startswith(prefix) else ""
@@ -37,7 +46,10 @@ class SidecarAuthMiddleware(BaseHTTPMiddleware):
             digest_token(token), self._config.token_digest
         ):
             return JSONResponse({"detail": {"reason_code": "SIDECAR_AUTH_REQUIRED"}}, status_code=401)
-        return await call_next(request)
+        response = await call_next(request)
+        for key, value in cors_headers.items():
+            response.headers[key] = value
+        return response
 
 
 __all__ = ["AuthConfig", "SidecarAuthMiddleware", "digest_token"]

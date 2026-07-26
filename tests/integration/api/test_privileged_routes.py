@@ -55,3 +55,30 @@ def test_privileged_actions_use_intent_challenge_and_main_consume() -> None:
     assert renderer_consume.status_code == 403
     assert main_consume.status_code == 200
     assert main_consume.json()["state"] == "EXECUTED"
+
+
+def test_failed_intent_token_does_not_consume_challenge() -> None:
+    client = _client()
+    challenge = client.post("/api/v1/review/r1/accept-intent", headers=_headers()).json()
+
+    wrong_token = client.post(
+        f"/api/v1/intents/{challenge['intent_id']}/consume",
+        headers={**_headers(), "X-Yagcode-Principal": "main"},
+        json={"one_time_token": "wrong-token"},
+    )
+    correct_token = client.post(
+        f"/api/v1/intents/{challenge['intent_id']}/consume",
+        headers={**_headers(), "X-Yagcode-Principal": "main"},
+        json={"one_time_token": challenge["one_time_token"]},
+    )
+    replay = client.post(
+        f"/api/v1/intents/{challenge['intent_id']}/consume",
+        headers={**_headers(), "X-Yagcode-Principal": "main"},
+        json={"one_time_token": challenge["one_time_token"]},
+    )
+
+    assert wrong_token.status_code == 403
+    assert wrong_token.json()["detail"]["reason_code"] == "INTENT_TOKEN_INVALID"
+    assert correct_token.status_code == 200
+    assert correct_token.json()["state"] == "EXECUTED"
+    assert replay.status_code == 404

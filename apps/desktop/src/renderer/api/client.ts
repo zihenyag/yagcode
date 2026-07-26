@@ -1,5 +1,4 @@
 import type { EventEnvelope, ReviewView } from "@yagcode/contracts";
-import { validateReviewView } from "@yagcode/contracts/validate";
 import { parseEventEnvelope, readSseMessages, SchemaValidationError } from "./events.js";
 
 export type ConnectionState = "connected" | "disconnected" | "resync-required";
@@ -100,6 +99,7 @@ export interface SidecarClient {
 export interface SidecarClientOptions {
   baseUrl: string;
   token: string;
+  apiPrefix?: string;
   fetchImpl?: typeof fetch;
   sseTransport?: SseTransport;
 }
@@ -117,14 +117,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function requireReviewView(value: unknown): ReviewView {
-  const result = validateReviewView(value);
-  if (result.ok === false) throw new SchemaValidationError(result.errors);
   if (!isRecord(value)) throw new SchemaValidationError(["/ must be object"]);
+  const kind = readString(value, "kind");
+  const state = readString(value, "state");
+  if (kind !== "review") throw new SchemaValidationError(["/kind must be review"]);
+  if (!["NOT_READY", "INCOMPLETE", "READY", "ACCEPTING", "ACCEPTED", "REJECTED", "CONFLICT", "RECOVERY_REQUIRED"].includes(state)) {
+    throw new SchemaValidationError(["/state invalid"]);
+  }
   return {
     generation: readNumber(value, "generation"),
     kind: "review",
     review_id: readString(value, "review_id"),
-    state: readString(value, "state") as ReviewView["state"],
+    state: state as ReviewView["state"],
     summary: readString(value, "summary"),
   };
 }
@@ -166,8 +170,13 @@ function defaultSseTransport(fetchImpl: typeof fetch): SseTransport {
   };
 }
 
-function buildEventUrl(baseUrl: string, profileId: string, lastSequence: number): string {
-  const url = new URL(`${baseUrl}/api/events`);
+function normalizeApiPrefix(apiPrefix: string | undefined): string {
+  const value = apiPrefix ?? "/api/v1";
+  return `/${value.replace(/^\/+|\/+$/gu, "")}`;
+}
+
+function buildEventUrl(baseUrl: string, apiPrefix: string, profileId: string, lastSequence: number): string {
+  const url = new URL(`${baseUrl}${apiPrefix}/events`);
   url.searchParams.set("profile_id", profileId);
   url.searchParams.set("last_sequence", String(lastSequence));
   return url.toString();
@@ -175,6 +184,7 @@ function buildEventUrl(baseUrl: string, profileId: string, lastSequence: number)
 
 export function createSidecarClient(options: SidecarClientOptions): SidecarClient {
   const baseUrl = normalizeBaseUrl(options.baseUrl);
+  const apiPrefix = normalizeApiPrefix(options.apiPrefix);
   const fetchImpl = options.fetchImpl ?? fetch;
   const sseTransport = options.sseTransport ?? defaultSseTransport(fetchImpl);
   let connection: ConnectionState = "connected";
@@ -182,23 +192,23 @@ export function createSidecarClient(options: SidecarClientOptions): SidecarClien
   async function fetchJson(path: string, init: RequestInit = {}): Promise<unknown> {
     const headers = new Headers(init.headers);
     for (const [key, value] of Object.entries(authHeaders(options.token))) headers.set(key, value);
-    const response = await fetchImpl(`${baseUrl}${path}`, { ...init, headers });
+    const response = await fetchImpl(`${baseUrl}${apiPrefix}${path}`, { ...init, headers });
     if (!response.ok) throw new Error(`HTTP_${response.status}`);
     return (await response.json()) as unknown;
   }
 
   return {
     async getSnapshot() {
-      const value = await fetchJson("/api/workbench");
+      const value = await fetchJson("/workbench");
       if (!isRecord(value)) throw new SchemaValidationError(["/ must be object"]);
       return value as unknown as WorkbenchApiSnapshot;
     },
     async getReview(reviewId) {
-      return requireReviewView(await fetchJson(`/api/reviews/${encodeURIComponent(reviewId)}`));
+      return requireReviewView(await fetchJson(`/reviews/${encodeURIComponent(reviewId)}`));
     },
     subscribe({ profileId, lastSequence, onEvent, onDisconnect }) {
       return sseTransport.connect({
-        url: buildEventUrl(baseUrl, profileId, lastSequence),
+        url: buildEventUrl(baseUrl, apiPrefix, profileId, lastSequence),
         headers: authHeaders(options.token),
         onMessage(raw) {
           try {
@@ -219,7 +229,7 @@ export function createSidecarClient(options: SidecarClientOptions): SidecarClien
     },
     async command(command) {
       if (connection !== "connected") return { ok: false, reason: "SIDECAR_DISCONNECTED" };
-      const value = await fetchJson("/api/commands", {
+      const value = await fetchJson("/commands", {
         body: JSON.stringify(command),
         headers: { "content-type": "application/json" },
         method: "POST",

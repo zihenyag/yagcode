@@ -1,0 +1,186 @@
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:net";
+import { request } from "node:http";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const desktopDir = resolve(scriptDir, "..");
+const repoRoot = resolve(desktopDir, "../..");
+
+function parseArgs(argv) {
+  return { smoke: argv.includes("--smoke") };
+}
+
+function findFreePort() {
+  return new Promise((resolvePort, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        server.close(() => reject(new Error("PORT_RESOLUTION_FAILED")));
+        return;
+      }
+      const port = address.port;
+      server.close(() => resolvePort(port));
+    });
+  });
+}
+
+function waitForHttp(url, { timeoutMs = 10_000, token } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolveWait, reject) => {
+    function attempt() {
+      const headers = token
+        ? { Authorization: `Bearer ${token}`, Origin: "app://yagcode" }
+        : {};
+      const req = request(url, { method: "GET", timeout: 1_000, headers }, (res) => {
+        res.resume();
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 500) {
+          resolveWait();
+          return;
+        }
+        retry();
+      });
+      req.once("timeout", () => {
+        req.destroy();
+        retry();
+      });
+      req.once("error", retry);
+      req.end();
+    }
+    function retry() {
+      if (Date.now() >= deadline) {
+        reject(new Error("HTTP_SMOKE_TIMEOUT"));
+        return;
+      }
+      setTimeout(attempt, 150);
+    }
+    attempt();
+  });
+}
+
+function stopProcess(child) {
+  if (child.killed) return;
+  if (process.platform === "win32" && child.pid !== undefined) {
+    spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", shell: false });
+    return;
+  }
+  child.kill(process.platform === "win32" ? undefined : "SIGTERM");
+}
+
+function collectOutput(child) {
+  const chunks = [];
+  child.stdout?.on("data", (chunk) => {
+    chunks.push(Buffer.from(chunk));
+  });
+  child.stderr?.on("data", (chunk) => {
+    chunks.push(Buffer.from(chunk));
+  });
+  return () => Buffer.concat(chunks).toString("utf8").trim();
+}
+
+function nodePackageCommand(kind) {
+  if (process.platform !== "win32") return { command: kind, args: [] };
+  const script = kind === "npm" ? "npm-cli.js" : "npx-cli.js";
+  return {
+    command: process.execPath,
+    args: [join(dirname(process.execPath), "node_modules/npm/bin", script)]
+  };
+}
+
+const { smoke } = parseArgs(process.argv.slice(2));
+const rendererPort = await findFreePort();
+const sidecarPort = await findFreePort();
+const sidecarToken = `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const sidecarPython =
+  process.env.YAGCODE_PYTHON ??
+  (process.platform === "win32" ? join(repoRoot, ".venv", "Scripts", "python.exe") : join(repoRoot, ".venv", "bin", "python"));
+const npx = nodePackageCommand("npx");
+const npm = nodePackageCommand("npm");
+
+const renderer = spawn(
+  npx.command,
+  [...npx.args, "--no-install", "vite", "src/renderer", "--host", "127.0.0.1", "--port", String(rendererPort), "--strictPort"],
+  {
+    cwd: desktopDir,
+    env: { ...process.env, BROWSER: "none" },
+    stdio: smoke ? ["ignore", "pipe", "pipe"] : "inherit",
+    shell: false
+  }
+);
+
+const sidecar = spawn(
+  sidecarPython,
+  ["-m", "yagcode.api.server", "--host", "127.0.0.1", "--port", String(sidecarPort), "--origin", "app://yagcode", "--token", sidecarToken],
+  {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      PYTHONPATH: join(repoRoot, "src")
+    },
+    stdio: smoke ? ["ignore", "pipe", "pipe"] : "inherit",
+    shell: false
+  }
+);
+
+let electron;
+try {
+  await waitForHttp(`http://127.0.0.1:${rendererPort}/`);
+  await waitForHttp(`http://127.0.0.1:${sidecarPort}/api/v1/health`, { token: sidecarToken });
+  await new Promise((resolveBuild, rejectBuild) => {
+    const build = spawn(npm.command, [...npm.args, "run", "build:main"], {
+      cwd: desktopDir,
+      env: process.env,
+      stdio: smoke ? ["ignore", "pipe", "pipe"] : "inherit",
+      shell: false
+    });
+    build.once("exit", (code) => {
+      if (code === 0) resolveBuild();
+      else rejectBuild(new Error(`DESKTOP_MAIN_BUILD_FAILED:${code ?? "null"}`));
+    });
+    build.once("error", rejectBuild);
+  });
+  electron = spawn(
+    npm.command,
+    [...npm.args, "run", "start:electron"],
+    {
+      cwd: desktopDir,
+      env: {
+        ...process.env,
+        YAGCODE_PROJECT_ROOT: repoRoot,
+        YAGCODE_DESKTOP_RENDERER_URL: `http://127.0.0.1:${rendererPort}/`,
+        YAGCODE_SIDECAR_BASE_URL: `http://127.0.0.1:${sidecarPort}`,
+        YAGCODE_SIDECAR_TOKEN: sidecarToken,
+        YAGCODE_DESKTOP_SMOKE: smoke ? "1" : "",
+        ELECTRON_ENABLE_LOGGING: smoke ? "" : process.env.ELECTRON_ENABLE_LOGGING
+      },
+      stdio: smoke ? ["ignore", "pipe", "pipe"] : "inherit",
+      shell: false
+    }
+  );
+  if (smoke) {
+    const electronOutput = collectOutput(electron);
+    await new Promise((resolveElectron, rejectElectron) => {
+      const timer = setTimeout(() => rejectElectron(new Error("ELECTRON_SMOKE_TIMEOUT")), 15_000);
+      electron.once("exit", (code) => {
+        clearTimeout(timer);
+        if (code === 0) resolveElectron();
+        else {
+          const output = electronOutput();
+          rejectElectron(new Error([`ELECTRON_SMOKE_EXIT:${code ?? "null"}`, output].filter(Boolean).join("\n")));
+        }
+      });
+      electron.once("error", (error) => {
+        clearTimeout(timer);
+        rejectElectron(error);
+      });
+    });
+    console.log("DEV_DESKTOP_SMOKE_OK");
+  }
+} finally {
+  if (electron) stopProcess(electron);
+  stopProcess(renderer);
+  stopProcess(sidecar);
+}

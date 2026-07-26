@@ -1,5 +1,4 @@
 import type { EventEnvelope, ReviewView } from "@yagcode/contracts";
-import { validateReviewView } from "@yagcode/contracts/validate";
 import type { ValidationStatus } from "./client.js";
 import { SchemaValidationError, toEventEnvelope } from "./events.js";
 
@@ -146,9 +145,9 @@ function readConnection(record: Record<string, unknown>): WorkbenchModel["connec
 }
 
 export function adaptReviewView(view: unknown): ReviewPanelModel {
-  const result = validateReviewView(view);
-  if (result.ok === false) throw new SchemaValidationError(result.errors);
   const record = requireRecord(view, "/review");
+  const kind = readString(record, "kind");
+  if (kind !== "review") throw new SchemaValidationError(["/kind must be review"]);
   return {
     reviewId: readString(record, "review_id"),
     generation: readNumber(record, "generation"),
