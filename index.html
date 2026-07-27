@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-src https://player.bilibili.com; connect-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"
+    >
+    <title>YagCode - 本地 Coding Agent 工作台</title>
+    <meta
+      name="description"
+      content="YagCode 是一个受约束、可回档、可审计的本地 Coding Agent Harness，面向需要可验证代码修改的开发者。"
+    >
+    <link rel="stylesheet" href="docs/landing/landing.css">
+  </head>
+  <body>
+    <header class="site-header" aria-label="页面导航">
+      <a class="brand" href="#top" aria-label="YagCode 首页">
+        <span class="brand-mark" aria-hidden="true">Y</span>
+        <span>YagCode</span>
+      </a>
+      <nav class="top-nav" aria-label="主要链接">
+        <a href="#screenshots">截图</a>
+        <a href="#security">安全边界</a>
+        <a href="#demo">讲解</a>
+        <a href="https://github.com/zihenyag/yagcode#readme">README</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">YagCode Coding Agent Harness</p>
+          <h1 id="hero-title">受约束、可回档、可审计的本地 Coding Agent</h1>
+          <p class="hero-lede">
+            YagCode 把模型决策、工具执行、权限审批、客观验证、记忆和 Git 集成放进一个可测试的 Harness。
+            它面向需要让 Agent 修改代码、又必须看清边界与证据的个人开发者和需要审查本地 AI 改动的维护者。
+          </p>
+          <div class="hero-actions" aria-label="项目入口">
+            <a class="button button-primary" href="https://github.com/zihenyag/yagcode/releases/latest">下载 Release</a>
+            <a class="button" href="https://github.com/zihenyag/yagcode">查看源码</a>
+            <a class="button" href="https://github.com/zihenyag/yagcode#readme">阅读 README</a>
+          </div>
+        </div>
+        <figure class="hero-shot">
+          <img
+            src="docs/landing/assets/screenshots/finished-diff.png"
+            alt="YagCode 桌面工作台展示任务完成状态、对话轨迹和右侧红绿 diff"
+            width="1552"
+            height="1072"
+          >
+          <figcaption>桌面端在本机运行 Agent、读取项目、展示候选 diff，并等待用户审阅或回滚。</figcaption>
+        </figure>
+      </section>
+
+      <section class="section dense" aria-labelledby="principles-title">
+        <div>
+          <p class="eyebrow">Why it exists</p>
+          <h2 id="principles-title">把 Coding Agent 的关键风险做成代码机制</h2>
+        </div>
+        <div class="principle-grid">
+          <article>
+            <h3>隔离执行</h3>
+            <p>每个任务从基线创建隔离执行目录；用户接受前不直接改真实工作区。</p>
+          </article>
+          <article>
+            <h3>确定性护栏</h3>
+            <p>危险文件、shell、网络、凭据和发布动作由 capability engine 拦截，不依赖提示词自律。</p>
+          </article>
+          <article>
+            <h3>客观反馈</h3>
+            <p>测试、类型检查、静态检查和 diff 合规结果会回灌给下一次 action。</p>
+          </article>
+          <article>
+            <h3>可回档证据</h3>
+            <p>审阅面展示 diff、验证、风险和 checkpoint；拒绝或回滚不覆盖用户原有改动。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split" id="security" aria-labelledby="security-title">
+        <div>
+          <p class="eyebrow">Boundary</p>
+          <h2 id="security-title">网页只是产品落地页，不是在线 Agent</h2>
+        </div>
+        <div class="boundary-panel">
+          <p>
+            这个 GitHub Pages 页面不会读取仓库、接收密钥、连接 Provider、连接 sidecar、上传文件、运行 shell、
+            执行 scripted demo 或持久化 first-party 数据。真实 Harness 只在桌面端或本地 CLI 中运行。
+          </p>
+          <ul class="boundary-list" aria-label="网页不会执行的能力">
+            <li>无任务输入、仓库选择、文件上传或 API key 控件</li>
+            <li>无动态网络请求、实时连接、analytics 或 service worker</li>
+            <li>无浏览器 Agent runtime、Provider endpoint、sidecar client、shell 或动态代码执行</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="screenshots" aria-labelledby="screenshots-title">
+        <div class="section-heading">
+          <p class="eyebrow">Screenshots</p>
+          <h2 id="screenshots-title">四个本地工作流画面</h2>
+          <p>这些截图来自项目中的 桌面工作台素材，用于展示产品形态和治理界面。</p>
+        </div>
+        <div class="screenshot-grid">
+          <figure class="shot-card shot-card-large">
+            <img
+              src="docs/landing/assets/screenshots/setup-agent.png"
+              alt="首次配置界面展示创建 AGENT 档案、项目、API 和线程步骤"
+              width="1123"
+              height="1016"
+            >
+            <figcaption>
+              <strong>首次配置</strong>
+              创建本地 AGENT 档案，再绑定项目、Provider 和线程。
+            </figcaption>
+          </figure>
+          <figure class="shot-card">
+            <img
+              src="docs/landing/assets/screenshots/ready-workbench.png"
+              alt="工作台 ready 状态展示项目树、任务上下文、Plan 模式和右侧 Changes 面板"
+              width="1552"
+              height="1072"
+            >
+            <figcaption>
+              <strong>任务上下文</strong>
+              线程标题只做界面元数据，真实输入在安全边界进入模型上下文。
+            </figcaption>
+          </figure>
+          <figure class="shot-card">
+            <img
+              src="docs/landing/assets/screenshots/finished-diff.png"
+              alt="任务完成界面展示验证摘要、候选 diff 和回滚 checkpoint"
+              width="1552"
+              height="1072"
+            >
+            <figcaption>
+              <strong>候选 diff</strong>
+              右侧 Changes 固定展示文件树、红绿 diff 和 checkpoint 回滚入口。
+            </figcaption>
+          </figure>
+          <figure class="shot-card">
+            <img
+              src="docs/landing/assets/screenshots/permission-panel.png"
+              alt="权限确认浮窗展示仅本次、本会话类似操作和完全访问三个选择"
+              width="667"
+              height="407"
+            >
+            <figcaption>
+              <strong>权限确认</strong>
+              高风险能力通过可撤销的结构化选择授权，而不是交给模型自行判断。
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section split" id="demo" aria-labelledby="demo-title">
+        <div>
+          <p class="eyebrow">Video</p>
+          <h2 id="demo-title">Bilibili 讲解</h2>
+        </div>
+        <div class="video-panel" data-video-panel>
+          <p>
+            Bilibili 播放器是第三方内容。加载后，Bilibili 可能按其政策使用自身的 cookie 或 storage。
+            本页面不会向它传递仓库、密钥、父页存储、Provider 信息或产品 API 地址。
+          </p>
+          <button class="button button-primary" type="button" data-load-video>
+            同意并加载 Bilibili 视频
+          </button>
+          <p class="video-status" data-video-status aria-live="polite">
+            视频发布后将在此加载；当前本地页面不会创建第三方 iframe。
+          </p>
+        </div>
+      </section>
+
+      <section class="section final-cta" aria-labelledby="handoff-title">
+        <div>
+          <p class="eyebrow">Local first</p>
+          <h2 id="handoff-title">获取源码，查看机制，运行本地验证</h2>
+          <p>
+            项目机制演示、mock Provider 测试、secret scan 和分发 smoke 都保留在仓库中。
+            页面只作为公开 WebUI 和下载入口；真正的代码执行留在受控本地环境。
+          </p>
+        </div>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/zihenyag/yagcode/releases/latest">Release</a>
+          <a class="button" href="https://github.com/zihenyag/yagcode">Source</a>
+          <a class="button" href="https://github.com/zihenyag/yagcode/commits/main">版本说明</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>YagCode</span>
+      <span>本地 Harness 运行；GitHub Pages 仅展示产品与下载入口。</span>
+    </footer>
+
+    <script src="docs/landing/landing.js"></script>
+  </body>
+</html>
