@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures.js";
+import { completeFirstRunOnboarding, test, expect } from "./fixtures.js";
 import type { Locator, Page } from "@playwright/test";
 
 async function focusByTab(window: Page, locator: Locator): Promise<void> {
@@ -17,12 +17,13 @@ async function pressAndAllowNavigationInterception(window: Page, key: string): P
   });
 }
 
-test("keyboard users can reach plan mode, model selection, and run controls", async ({ window }) => {
+test("keyboard users can reach plan mode, model selection, and run controls", async ({ fixtureSidecar, window }) => {
+  await completeFirstRunOnboarding(window, fixtureSidecar);
   const planMode = window.getByRole("checkbox", { name: "Plan 模式" });
   await expect(planMode).toBeVisible();
   await focusByTab(window, planMode);
   await expect(planMode).toBeFocused();
-  await expect(window.getByRole("combobox", { name: "模型" })).toBeDisabled();
+  await expect(window.getByRole("combobox", { name: "模型" })).toBeEnabled();
   await focusByTab(window, window.getByRole("button", { name: "停止" }));
   await expect(window.getByRole("button", { name: "停止" })).toBeFocused();
 });

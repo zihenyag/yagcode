@@ -25,6 +25,7 @@ class ProviderContext:
     provider: str
     model: str
     feedback_codes: tuple[str, ...]
+    prompt: str = ""
 
 
 @dataclass(frozen=True, slots=True)

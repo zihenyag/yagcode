@@ -8,7 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import deepseek, glm, openai, qwen
+from . import deepseek, glm, kimi, minimax, njusehub, openai, qwen
 from .base import Provider, ProviderContext, ProviderFailure, ProviderResult, Usage
 from .scripted import ScriptedProvider
 
@@ -80,6 +80,9 @@ def adapter_for_fixture(provider_id: str, decoded_response: dict[str, object]) -
         "qwen": qwen.extract_candidate,
         "glm": glm.extract_candidate,
         "deepseek": deepseek.extract_candidate,
+        "minimax": minimax.extract_candidate,
+        "kimi": kimi.extract_candidate,
+        "njusehub": njusehub.extract_candidate,
     }
     try:
         extractor = extractors[provider_id]

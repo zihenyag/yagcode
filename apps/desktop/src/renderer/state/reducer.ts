@@ -10,6 +10,7 @@ export type RunState =
   | "WAITING_PRIVACY"
   | "STOPPING"
   | "INTERRUPTED"
+  | "STOPPED"
   | "FINISHED"
   | "FAILED";
 
@@ -31,6 +32,7 @@ const allowedRunTransitions: Record<RunState, readonly RunState[]> = {
   WAITING_PRIVACY: ["RUNNING", "STOPPING", "INTERRUPTED", "FINISHED", "FAILED", "WAITING_PRIVACY"],
   STOPPING: ["INTERRUPTED", "FINISHED", "FAILED", "STOPPING"],
   INTERRUPTED: ["RUNNING", "STOPPING", "FINISHED", "FAILED", "INTERRUPTED"],
+  STOPPED: ["RUNNING", "STOPPED"],
   FINISHED: ["FINISHED"],
   FAILED: ["FAILED"],
 };
@@ -58,6 +60,7 @@ function normalizeRunState(value: string): RunState {
     value === "WAITING_PRIVACY" ||
     value === "STOPPING" ||
     value === "INTERRUPTED" ||
+    value === "STOPPED" ||
     value === "FINISHED" ||
     value === "FAILED"
   ) {

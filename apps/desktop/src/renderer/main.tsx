@@ -18,6 +18,11 @@ interface StartupConnection {
   connected: boolean;
 }
 
+interface ViteInjectedEnv {
+  VITE_YAGCODE_SIDECAR_BASE_URL?: string;
+  VITE_YAGCODE_SIDECAR_TOKEN?: string;
+}
+
 function isStartupConnection(value: unknown): value is StartupConnection {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
@@ -30,10 +35,16 @@ function createUnavailableClient(): SidecarClient {
     generation: 0,
     last_sequence: 0,
     connection: "disconnected",
+    onboarding: {
+      step: "CREATE_AGENT",
+      completed_steps: [],
+      headline: "等待 sidecar",
+      detail: "Electron preload 尚未注入真实连接，当前只能显示不可用状态。",
+    },
     navigation: {
-      profiles: [{ id: "profile-1", label: "默认档案" }],
-      projects: [{ id: "project-1", label: "未连接项目", active: true }],
-      threads: [{ id: "thread-1", label: "等待 sidecar", unread_approvals: 0, memory_suggestions: 0 }],
+      profiles: [],
+      projects: [],
+      threads: [],
       run_state: "IDLE",
     },
     task: {
@@ -64,15 +75,37 @@ function createUnavailableClient(): SidecarClient {
     },
     evidence: {
       diff: { files_changed: 0, additions: 0, deletions: 0 },
+      diff_files: [],
       validations: [{ id: "sidecar", title: "sidecar 连接", detail: "等待 Electron Main 注入", status: "pending" }],
       risks: ["当前 renderer 只能展示状态，不能执行本地动作"],
       uncovered: ["真实桌面生命周期由 覆盖"],
       approval_actions: [],
     },
     settings: {
-      credential_statuses: [{ provider: "openai", status: "missing", updated_at: null }],
+      credential_statuses: [
+        {
+          provider: "openai",
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://platform.openai.com/docs/api-reference/responses",
+        },
+      ],
       retention_options: ["permanent", "30d", "60d", "90d", "180d", "1y", "2y"],
       selected_retention: "permanent",
+      theme_mode: "system",
+      locale: "zh-Hans",
+      theme_options: [
+        { id: "system", label: "跟随系统" },
+        { id: "light", label: "Light" },
+        { id: "dark", label: "Dark" },
+      ],
+      locale_options: [
+        { id: "zh-Hans", label: "中文（简体）" },
+        { id: "zh-Hant", label: "中文（繁體）" },
+        { id: "en-US", label: "English (US)" },
+        { id: "en-GB", label: "English (UK)" },
+      ],
     },
     memory: {
       project_memories: [],
@@ -80,6 +113,93 @@ function createUnavailableClient(): SidecarClient {
     },
     audit: {
       entries: [],
+    },
+    demo: {
+      selected_panel: "审查",
+      theme_mode: "system",
+      locale: "zh-Hans",
+      agent_name: null,
+      project_path: null,
+      project: null,
+      providers: [
+        {
+          provider: "openai",
+          label: "OpenAI",
+          configured: false,
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://platform.openai.com/docs/api-reference/responses",
+        },
+        {
+          provider: "qwen",
+          label: "Qwen",
+          configured: false,
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://www.alibabacloud.com/help/en/model-studio/compatibility-of-openai-with-dashscope",
+        },
+        {
+          provider: "glm",
+          label: "GLM",
+          configured: false,
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://docs.bigmodel.cn/api-reference/model-api/chat-completion",
+        },
+        {
+          provider: "deepseek",
+          label: "DeepSeek",
+          configured: false,
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://api-docs.deepseek.com/api/create-chat-completion",
+        },
+        {
+          provider: "minimax",
+          label: "MiniMax",
+          configured: false,
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://platform.minimaxi.com/document/ChatCompletion%20v2",
+        },
+        {
+          provider: "kimi",
+          label: "Kimi / Moonshot",
+          configured: false,
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://platform.moonshot.cn/docs/api/chat",
+        },
+        {
+          provider: "njusehub",
+          label: "NJU SE Hub",
+          configured: false,
+          status: "missing",
+          updated_at: null,
+          detail: "sidecar 未连接",
+          docs_url: "https://dongshao.github.io/GAIHub1/njusehubdoc.html",
+        },
+      ],
+      privacy: {
+        preview_confirmed: false,
+        retention: "permanent",
+        preview_items: [],
+      },
+      permissions: {
+        mode: "yes_once",
+        options: [
+          { id: "yes_once", label: "Yes once", detail: "仅本次。", active: true },
+          { id: "yes_similar_session", label: "Yes to similar actions for this app session", detail: "本会话相似操作。", active: false },
+          { id: "full_access", label: "Full access for this app session", detail: "本会话完全访问。", active: false },
+        ],
+      },
+      checkpoints: [],
     },
   };
   return {
@@ -98,6 +218,15 @@ function createUnavailableClient(): SidecarClient {
   };
 }
 
+function devInjectedConnection(): StartupConnection | null {
+  const viteEnv = (import.meta as unknown as { env?: ViteInjectedEnv }).env;
+  const baseUrl = viteEnv?.VITE_YAGCODE_SIDECAR_BASE_URL;
+  const token = viteEnv?.VITE_YAGCODE_SIDECAR_TOKEN;
+  if (typeof baseUrl !== "string" || baseUrl.length === 0) return null;
+  if (typeof token !== "string" || token.length === 0) return null;
+  return { baseUrl, token, connected: true };
+}
+
 const root = document.getElementById("root");
 if (root === null) throw new Error("ROOT_ELEMENT_MISSING");
 
@@ -107,6 +236,10 @@ async function resolveClient(): Promise<SidecarClient> {
   const connection = await bootstrap.yagcode?.getStartupConnection?.();
   if (isStartupConnection(connection) && connection.connected === true && connection.baseUrl.length > 0 && connection.token.length > 0) {
     return createSidecarClient({ baseUrl: connection.baseUrl, token: connection.token });
+  }
+  const devConnection = devInjectedConnection();
+  if (devConnection !== null) {
+    return createSidecarClient({ baseUrl: devConnection.baseUrl, token: devConnection.token });
   }
   return createUnavailableClient();
 }

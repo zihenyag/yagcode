@@ -33,11 +33,11 @@ function waitForHttp(url, { timeoutMs = 10_000, token } = {}) {
   return new Promise((resolveWait, reject) => {
     function attempt() {
       const headers = token
-        ? { Authorization: `Bearer ${token}`, Origin: "app://yagcode" }
+        ? { Authorization: `Bearer ${token}`, Origin: rendererOrigin }
         : {};
       const req = request(url, { method: "GET", timeout: 1_000, headers }, (res) => {
         res.resume();
-        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 500) {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           resolveWait();
           return;
         }
@@ -102,6 +102,8 @@ function nodePackageCommand(kind) {
 const { smoke } = parseArgs(process.argv.slice(2));
 const rendererPort = await findFreePort();
 const sidecarPort = await findFreePort();
+const rendererUrl = `http://127.0.0.1:${rendererPort}/`;
+const rendererOrigin = new URL(rendererUrl).origin;
 const sidecarToken = `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 const sidecarPython =
   process.env.YAGCODE_PYTHON ??
@@ -114,7 +116,12 @@ const renderer = spawn(
   [...npx.args, "--no-install", "vite", "src/renderer", "--host", "127.0.0.1", "--port", String(rendererPort), "--strictPort"],
   {
     cwd: desktopDir,
-    env: { ...process.env, BROWSER: "none" },
+    env: {
+      ...process.env,
+      BROWSER: "none",
+      VITE_YAGCODE_SIDECAR_BASE_URL: `http://127.0.0.1:${sidecarPort}`,
+      VITE_YAGCODE_SIDECAR_TOKEN: sidecarToken
+    },
     stdio: smoke ? ["ignore", "pipe", "pipe"] : "inherit",
     shell: false
   }
@@ -122,7 +129,7 @@ const renderer = spawn(
 
 const sidecar = spawn(
   sidecarPython,
-  ["-m", "yagcode.api.server", "--host", "127.0.0.1", "--port", String(sidecarPort), "--origin", "app://yagcode", "--token", sidecarToken],
+  ["-m", "yagcode.api.server", "--host", "127.0.0.1", "--port", String(sidecarPort), "--origin", rendererOrigin, "--token", sidecarToken],
   {
     cwd: repoRoot,
     env: {
@@ -136,8 +143,9 @@ const sidecar = spawn(
 
 let electron;
 try {
-  await waitForHttp(`http://127.0.0.1:${rendererPort}/`);
+  await waitForHttp(rendererUrl);
   await waitForHttp(`http://127.0.0.1:${sidecarPort}/api/v1/health`, { token: sidecarToken });
+  await waitForHttp(`http://127.0.0.1:${sidecarPort}/api/v1/workbench`, { token: sidecarToken });
   await new Promise((resolveBuild, rejectBuild) => {
     const build = spawn(npm.command, [...npm.args, "run", "build:main"], {
       cwd: desktopDir,
@@ -159,7 +167,8 @@ try {
       env: {
         ...process.env,
         YAGCODE_PROJECT_ROOT: repoRoot,
-        YAGCODE_DESKTOP_RENDERER_URL: `http://127.0.0.1:${rendererPort}/`,
+        YAGCODE_DESKTOP_ORIGIN: rendererOrigin,
+        YAGCODE_DESKTOP_RENDERER_URL: rendererUrl,
         YAGCODE_SIDECAR_BASE_URL: `http://127.0.0.1:${sidecarPort}`,
         YAGCODE_SIDECAR_TOKEN: sidecarToken,
         YAGCODE_DESKTOP_SMOKE: smoke ? "1" : "",

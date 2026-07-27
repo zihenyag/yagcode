@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal
-
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
-from yagcode.api.dependencies import ApiDomainError, Services, get_services
+from yagcode.api.dependencies import ApiDomainError, RunRecordState, Services, get_services
 from yagcode.api.routes._errors import raise_http
 from yagcode.api.schemas import RunView
 
@@ -26,7 +24,7 @@ class SwitchModelRequest(BaseModel):
 class RunDetailView(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     run_id: str
-    state: Literal["RUNNING", "STOPPED"]
+    state: RunRecordState
     model: str
     generation: int
 

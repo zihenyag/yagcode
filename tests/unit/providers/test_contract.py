@@ -57,12 +57,16 @@ def test_official_endpoint_manifest_is_locked() -> None:
     assert manifest["qwen"].url == "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
     assert manifest["glm"].url == "https://open.bigmodel.cn/api/paas/v4/chat/completions"
     assert manifest["deepseek"].url == "https://api.deepseek.com/chat/completions"
+    assert manifest["minimax"].url == "https://api.minimax.chat/v1/chat/completions"
+    assert manifest["kimi"].url == "https://api.moonshot.cn/v1/chat/completions"
+    assert manifest["njusehub"].url == "https://njusehub.info/v1/chat/completions"
+    assert manifest["njusehub"].docs_url == "https://dongshao.github.io/GAIHub1/njusehubdoc.html"
     assert all(item.docs_url.startswith("https://") for item in manifest.values())
     raw = json.loads(Path("src/yagcode/providers/official_endpoints.json").read_text())
-    assert set(raw["providers"]) == {"openai", "qwen", "glm", "deepseek"}
+    assert set(raw["providers"]) == {"openai", "qwen", "glm", "deepseek", "minimax", "kimi", "njusehub"}
 
 
-@pytest.mark.parametrize("provider_id", ["openai", "qwen", "glm", "deepseek"])
+@pytest.mark.parametrize("provider_id", ["openai", "qwen", "glm", "deepseek", "minimax", "kimi", "njusehub"])
 def test_adapter_returns_one_defensively_copied_candidate(provider_id: str) -> None:
     providers = load_provider_contract()
     adapter = providers.adapter_for_fixture(provider_id, _provider_response(provider_id, VALID_ACTION))

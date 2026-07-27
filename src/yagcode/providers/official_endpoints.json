@@ -21,6 +21,21 @@
       "method": "POST",
       "url": "https://api.deepseek.com/chat/completions",
       "docs_url": "https://api-docs.deepseek.com/api/create-chat-completion"
+    },
+    "minimax": {
+      "method": "POST",
+      "url": "https://api.minimax.chat/v1/chat/completions",
+      "docs_url": "https://platform.minimaxi.com/document/ChatCompletion%20v2"
+    },
+    "kimi": {
+      "method": "POST",
+      "url": "https://api.moonshot.cn/v1/chat/completions",
+      "docs_url": "https://platform.moonshot.cn/docs/api/chat"
+    },
+    "njusehub": {
+      "method": "POST",
+      "url": "https://njusehub.info/v1/chat/completions",
+      "docs_url": "https://dongshao.github.io/GAIHub1/njusehubdoc.html"
     }
   }
 }

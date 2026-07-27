@@ -9,6 +9,7 @@ export interface WorkbenchApiSnapshot {
   generation: number;
   last_sequence: number;
   connection: ConnectionState;
+  onboarding: OnboardingApiView;
   navigation: NavigationApiView;
   task: TaskApiView;
   review_view: ReviewView;
@@ -16,6 +17,18 @@ export interface WorkbenchApiSnapshot {
   settings: SettingsApiView;
   memory: MemoryApiView;
   audit: AuditApiView;
+  demo: DemoApiView;
+}
+
+export type OnboardingStep = "CREATE_AGENT" | "OPEN_FOLDER" | "BIND_API" | "CREATE_THREAD" | "WORKBENCH";
+export type ThemeMode = "system" | "light" | "dark";
+export type LocaleMode = "zh-Hans" | "zh-Hant" | "en-US" | "en-GB";
+
+export interface OnboardingApiView {
+  step: OnboardingStep;
+  completed_steps: readonly OnboardingStep[];
+  headline: string;
+  detail: string;
 }
 
 export interface NavigationApiView {
@@ -37,11 +50,24 @@ export interface TaskApiView {
   retry_policy: { connection_retries: number; tool_retries: number; model_retries: number };
   compact_after_lines: number;
   append_enabled: boolean;
-  error?: { reason: string; side_effect_state: string; scope: string; recovery: string };
+  messages?: readonly { id: string; role: "user" | "assistant" | "system"; title: string; body: string; at: string }[];
+  error?: { reason: string; side_effect_state: string; scope: string; recovery: string } | null;
 }
 
 export interface EvidenceApiView {
   diff: { files_changed: number; additions: number; deletions: number };
+  diff_files: readonly {
+    path: string;
+    status: "modified" | "added" | "deleted";
+    additions: number;
+    deletions: number;
+    lines: readonly {
+      kind: "context" | "add" | "delete" | "hunk";
+      old_line: number | null;
+      new_line: number | null;
+      content: string;
+    }[];
+  }[];
   validations: readonly { id: string; title: string; detail: string; status: ValidationStatus; command?: string }[];
   risks: readonly string[];
   uncovered: readonly string[];
@@ -49,9 +75,19 @@ export interface EvidenceApiView {
 }
 
 export interface SettingsApiView {
-  credential_statuses: readonly { provider: string; status: "present" | "missing" | "error"; updated_at: string | null }[];
+  credential_statuses: readonly {
+    provider: string;
+    status: "verified" | "missing" | "error";
+    updated_at: string | null;
+    detail: string;
+    docs_url: string;
+  }[];
   retention_options: readonly string[];
   selected_retention: string;
+  theme_mode: ThemeMode;
+  locale: LocaleMode;
+  theme_options: readonly { id: ThemeMode; label: string }[];
+  locale_options: readonly { id: LocaleMode; label: string }[];
 }
 
 export interface MemoryApiView {
@@ -61,6 +97,42 @@ export interface MemoryApiView {
 
 export interface AuditApiView {
   entries: readonly { id: string; title: string; detail: string; at: string }[];
+}
+
+export interface DemoApiView {
+  selected_panel: string;
+  theme_mode: ThemeMode;
+  locale: LocaleMode;
+  agent_name: string | null;
+  project_path: string | null;
+  project: {
+    path: string;
+    label: string;
+    is_git_repo: boolean;
+    git_root: string | null;
+    branch: string | null;
+    status_summary: readonly string[];
+    error: string | null;
+  } | null;
+  providers: readonly {
+    provider: string;
+    label: string;
+    configured: boolean;
+    status: "verified" | "missing" | "error";
+    updated_at: string | null;
+    detail: string;
+    docs_url: string;
+  }[];
+  privacy: {
+    preview_confirmed: boolean;
+    retention: string;
+    preview_items: readonly { id: string; category: string; source: string; preview: string; confirmed: boolean }[];
+  };
+  permissions: {
+    mode: string;
+    options: readonly { id: string; label: string; detail: string; active: boolean }[];
+  };
+  checkpoints: readonly { id: string; label: string; detail: string; current: boolean }[];
 }
 
 export interface SubscribeArgs {
@@ -234,7 +306,10 @@ export function createSidecarClient(options: SidecarClientOptions): SidecarClien
         headers: { "content-type": "application/json" },
         method: "POST",
       });
-      if (!isRecord(value) || value.ok !== true) return { ok: false, reason: "COMMAND_REJECTED" };
+      if (!isRecord(value)) return { ok: false, reason: "COMMAND_REJECTED" };
+      if (value.ok !== true) {
+        return { ok: false, reason: typeof value.reason === "string" ? value.reason : "COMMAND_REJECTED" };
+      }
       return { ok: true };
     },
   };

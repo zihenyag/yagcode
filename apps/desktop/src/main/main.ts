@@ -53,6 +53,9 @@ async function main(): Promise<void> {
 
   ipcMain.handle("sidecar:connection", () => sidecar.connectionView());
   ipcMain.handle("directory:choose", async () => {
+    if (process.env.YAGCODE_E2E === "1" && process.env.YAGCODE_E2E_DIRECTORY_PATH) {
+      return { canceled: false, paths: [process.env.YAGCODE_E2E_DIRECTORY_PATH] };
+    }
     const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
     return result.canceled ? { canceled: true, paths: [] } : { canceled: false, paths: result.filePaths };
   });

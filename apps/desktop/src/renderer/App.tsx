@@ -7,6 +7,7 @@ import { createInitialWorkbenchState, reduceEvent } from "./state/reducer.js";
 import { NavigationPane } from "./views/NavigationPane.js";
 import { TaskPane } from "./views/TaskPane.js";
 import { EvidencePane } from "./views/EvidencePane.js";
+import { OnboardingPane } from "./views/OnboardingPane.js";
 
 declare global {
   interface Window {
@@ -42,10 +43,60 @@ function applyEventToModel(model: WorkbenchModel, event: unknown): WorkbenchMode
   };
 }
 
+function commandPayloadText(commandValue: WorkbenchCommand): string {
+  const payload = commandValue.payload;
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) return "";
+  const text = (payload as Record<string, unknown>).text;
+  return typeof text === "string" ? text.trim() : "";
+}
+
 export function App({ client }: { client: SidecarClient }) {
   const [model, setModel] = useState<WorkbenchModel | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [blockingRuns, setBlockingRuns] = useState<readonly { id: string; state: string; title?: string }[]>([]);
+
+  async function refreshSnapshot(): Promise<void> {
+    const snapshot = await client.getSnapshot();
+    setModel(adaptSnapshot(snapshot));
+    setLoadError(null);
+  }
+
+  function showCommandError(reason: string) {
+    setModel((current) =>
+      current === null
+        ? current
+        : {
+            ...current,
+            task: {
+              ...current.task,
+              error: {
+                reason,
+                sideEffectState: "命令未执行",
+                scope: "当前线程",
+                recovery: "查看状态后重新选择可用操作",
+              },
+            },
+          },
+    );
+  }
+
+  function showOptimisticRunning() {
+    setModel((current) => {
+      if (current === null) return current;
+      const { error: _error, ...taskWithoutError } = current.task;
+      return {
+        ...current,
+        navigation: {
+          ...current.navigation,
+          runState: "RUNNING",
+        },
+        task: {
+          ...taskWithoutError,
+          runState: "RUNNING",
+        },
+      };
+    });
+  }
 
   useEffect(() => {
     let active = true;
@@ -109,12 +160,55 @@ export function App({ client }: { client: SidecarClient }) {
     return () => window.removeEventListener("yagcode:blocking-runs", onBlockingRuns);
   }, []);
 
+  useEffect(() => {
+    if (model === null) return;
+    document.documentElement.dataset.themeMode = model.settings.themeMode;
+    document.documentElement.lang = model.settings.locale;
+  }, [model]);
+
+  async function runCommand(commandValue: WorkbenchCommand, options: { optimisticRun?: boolean } = {}): Promise<boolean> {
+    if (options.optimisticRun === true) showOptimisticRunning();
+    try {
+      const result = await client.command(commandValue);
+      if (!result.ok) {
+        await refreshSnapshot();
+        showCommandError(result.reason);
+        return false;
+      }
+      await refreshSnapshot();
+      return true;
+    } catch (error: unknown) {
+      showCommandError(error instanceof Error ? error.message : "COMMAND_FAILED");
+      return false;
+    }
+  }
+
+  async function sendAndResume(commandValue: WorkbenchCommand): Promise<void> {
+    const text = commandPayloadText(commandValue);
+    if (text.length === 0) {
+      showCommandError("APPEND_MESSAGE_EMPTY");
+      return;
+    }
+    const appended = await runCommand({ type: "append_message", payload: { text } });
+    if (!appended) return;
+    await runCommand({ type: "resume_run" }, { optimisticRun: true });
+  }
+
   function command(commandValue: WorkbenchCommand) {
-    void client.command(commandValue);
+    if (commandValue.type === "send_and_resume") {
+      void sendAndResume(commandValue);
+      return;
+    }
+    void runCommand(commandValue, { optimisticRun: commandValue.type === "resume_run" });
   }
 
   function requestIntent(intent: { actionId: string; highRisk: boolean }) {
-    if (intent.highRisk) void window.yagcode?.requestIntentWindow?.(intent.actionId);
+    if (intent.highRisk) {
+      void window.yagcode?.requestIntentWindow?.(intent.actionId).then(
+        () => refreshSnapshot(),
+        (error: unknown) => showCommandError(error instanceof Error ? error.message : "INTENT_FAILED"),
+      );
+    }
     else command({ type: "review_intent", payload: intent });
   }
 
@@ -140,9 +234,18 @@ export function App({ client }: { client: SidecarClient }) {
   }
 
   return (
-    <main className="workbench" data-connection={model.connection}>
-      <NavigationPane model={model.navigation} />
-      <TaskPane model={model.task} onCommand={command} />
+    <main
+      className="workbench"
+      data-connection={model.connection}
+      data-locale={model.settings.locale}
+      data-theme-mode={model.settings.themeMode}
+    >
+      <NavigationPane model={model.navigation} onCommand={command} />
+      {model.onboarding.step === "WORKBENCH" ? (
+        <TaskPane locale={model.settings.locale} model={model.task} onCommand={command} />
+      ) : (
+        <OnboardingPane onboarding={model.onboarding} demo={model.demo} task={model.task} onCommand={command} />
+      )}
       <div className="right-column">
         {blockingRuns.length > 0 ? (
           <section className="blocking-card" aria-labelledby="blocking-runs-heading" tabIndex={-1}>
@@ -158,7 +261,16 @@ export function App({ client }: { client: SidecarClient }) {
             </ul>
           </section>
         ) : null}
-        <EvidencePane model={model.evidence} onIntent={requestIntent} />
+        <EvidencePane
+          audit={model.audit}
+          demo={model.demo}
+          locale={model.settings.locale}
+          memory={model.memory}
+          model={model.evidence}
+          onCommand={command}
+          onIntent={requestIntent}
+          settings={model.settings}
+        />
       </div>
     </main>
   );

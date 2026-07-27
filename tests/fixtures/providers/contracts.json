@@ -4,6 +4,9 @@
     "openai": {"method": "POST", "request_url": "https://api.openai.com/v1/responses", "docs_url": "https://platform.openai.com/docs/api-reference/responses", "retrieved_at": "2026-07-23"},
     "qwen": {"method": "POST", "request_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions", "docs_url": "https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope", "retrieved_at": "2026-07-23"},
     "glm": {"method": "POST", "request_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions", "docs_url": "https://docs.bigmodel.cn/cn/api/introduction", "retrieved_at": "2026-07-23"},
-    "deepseek": {"method": "POST", "request_url": "https://api.deepseek.com/chat/completions", "docs_url": "https://api-docs.deepseek.com/", "retrieved_at": "2026-07-23"}
+    "deepseek": {"method": "POST", "request_url": "https://api.deepseek.com/chat/completions", "docs_url": "https://api-docs.deepseek.com/", "retrieved_at": "2026-07-23"},
+    "minimax": {"method": "POST", "request_url": "https://api.minimax.chat/v1/chat/completions", "docs_url": "https://platform.minimaxi.com/document/ChatCompletion%20v2", "retrieved_at": "2026-07-26"},
+    "kimi": {"method": "POST", "request_url": "https://api.moonshot.cn/v1/chat/completions", "docs_url": "https://platform.moonshot.cn/docs/api/chat", "retrieved_at": "2026-07-26"},
+    "njusehub": {"method": "POST", "request_url": "https://njusehub.info/v1/chat/completions", "docs_url": "https://dongshao.github.io/GAIHub1/njusehubdoc.html", "retrieved_at": "2026-07-23"}
   }
 }

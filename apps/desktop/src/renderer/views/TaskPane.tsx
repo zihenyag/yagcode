@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { StatusBadge } from "@yagcode/ui/desktop";
+import type { LocaleMode } from "../api/client.js";
 import type { TaskModel } from "../api/adapters.js";
+import { uiText } from "../i18n.js";
 import { isModelLocked } from "../state/reducer.js";
 
 function runTone(runState: string): "success" | "warning" | "danger" | "info" | "neutral" {
@@ -13,40 +15,117 @@ function runTone(runState: string): "success" | "warning" | "danger" | "info" | 
 
 export function ModelSelector({
   runState,
+  provider,
   model,
   models,
+  locale = "zh-Hans",
   onChange,
 }: {
   runState: string;
+  provider: string;
   model: string;
   models: readonly { id: string; label: string; provider: string }[];
-  onChange?: (model: string) => void;
+  locale?: LocaleMode;
+  onChange?: (provider: string, model: string) => void;
 }) {
   const locked = isModelLocked(runState);
+  const selectedValue = modelOptionValue(provider, model);
   return (
     <label className="model-field">
-      <span className="control-label">模型</span>
-      <select aria-label="模型" disabled={locked} value={model} onChange={(event) => onChange?.(event.currentTarget.value)}>
+      <span className="control-label">{uiText(locale, "model")}</span>
+      <select
+        aria-label={uiText(locale, "model")}
+        disabled={locked}
+        value={selectedValue}
+        onChange={(event) => {
+          const next = parseModelOptionValue(event.currentTarget.value);
+          onChange?.(next.provider, next.model);
+        }}
+      >
         {models.map((candidate) => (
-          <option key={candidate.id} value={candidate.id}>
+          <option key={modelOptionValue(candidate.provider, candidate.id)} value={modelOptionValue(candidate.provider, candidate.id)}>
             {candidate.label}
           </option>
         ))}
       </select>
-      <small>{locked ? "中断并保存 checkpoint 后可切换" : "可切换当前模型"}</small>
+      <small>{locked ? uiText(locale, "modelSwitchLocked") : uiText(locale, "modelSwitchReady")}</small>
     </label>
   );
 }
 
+function modelOptionValue(provider: string, model: string): string {
+  return `${encodeURIComponent(provider)}::${encodeURIComponent(model)}`;
+}
+
+function parseModelOptionValue(value: string): { provider: string; model: string } {
+  const [provider = "", model = ""] = value.split("::", 2);
+  return { provider: decodeURIComponent(provider), model: decodeURIComponent(model) };
+}
+
+function runStateLabel(runState: string, locale: LocaleMode): string {
+  const labels: Record<string, string> =
+    locale === "zh-Hant"
+      ? {
+          IDLE: "尚未開始",
+          READY: "等待輸入 / 發送後啟動",
+          RUNNING: "正在請求 Provider 並執行受控 action",
+          FINISHED: "已生成候選修改，查看右側 Changes",
+          FAILED: "運行失敗，查看錯誤與觀察",
+          STOPPED: "已停止，可切換模型",
+        }
+      : locale === "en-US" || locale === "en-GB"
+        ? {
+            IDLE: "Not started",
+            READY: "Waiting for input / send to start",
+            RUNNING: "Requesting provider and executing governed action",
+            FINISHED: "Candidate change is ready; review Changes",
+            FAILED: "Run failed; inspect the error and observations",
+            STOPPED: "Stopped; model switching is available",
+          }
+        : {
+            IDLE: "尚未开始",
+            READY: "等待输入 / 发送后启动",
+            RUNNING: "正在请求 Provider 并执行受控 action",
+            FINISHED: "已生成候选修改，查看右侧 Changes",
+            FAILED: "运行失败，查看错误与观察",
+            STOPPED: "已停止，可切换模型",
+          };
+  return labels[runState] ?? runState;
+}
+
+function shouldRunAfterSend(runState: string): boolean {
+  return runState === "IDLE" || runState === "READY" || runState === "STOPPED" || runState === "FAILED";
+}
+
 export function TaskPane({
   model,
+  locale = "zh-Hans",
   onCommand,
 }: {
   model: TaskModel;
+  locale?: LocaleMode;
   onCommand(command: { type: string; payload?: unknown }): void;
 }) {
-  const [planMode, setPlanMode] = useState(model.planMode);
-  const [selectedModel, setSelectedModel] = useState(model.model);
+  const [draft, setDraft] = useState("");
+  const messages =
+    model.messages.length > 0
+      ? model.messages
+      : [
+          {
+            id: "fallback-agent",
+            role: "assistant" as const,
+            title: "本地工作台",
+            body: "线程名称只作为界面元数据，不会发给模型。请在输入框发送真实任务内容；发送后会启动 Agent step。",
+            at: `${model.provider} · ${model.model}`,
+          },
+        ];
+  const runAfterSend = shouldRunAfterSend(model.runState);
+  function sendDraft() {
+    const text = draft.trim();
+    if (text.length === 0) return;
+    onCommand({ type: runAfterSend ? "send_and_resume" : "append_message", payload: { text } });
+    setDraft("");
+  }
   return (
     <section className="workbench-pane workbench-pane--task" aria-labelledby="task-heading">
       <header className="task-titlebar">
@@ -57,29 +136,37 @@ export function TaskPane({
         <StatusBadge tone={runTone(model.runState)} label={model.runState} />
       </header>
 
+      <div className={`run-strip run-strip--${model.runState.toLowerCase()}`} aria-live="polite">
+        <StatusBadge tone={runTone(model.runState)} label={runStateLabel(model.runState, locale)} />
+        <span>{model.provider} · {model.model}</span>
+      </div>
+
       <div className="conversation" role="log" aria-label="任务对话">
-        <article className="message message--user">
-          <div className="message__avatar" aria-hidden="true">你</div>
-          <div className="message__content">
-            <header className="message__meta">
-              <span>用户请求</span>
-              <span>{model.threadId}</span>
-            </header>
-            <div className="message__bubble">
-              <p>{model.title}</p>
+        {messages.map((message) => (
+          <article className={`message message--${message.role}`} key={message.id}>
+            <div className="message__avatar" aria-hidden="true">
+              {message.role === "user" ? "你" : message.role === "assistant" ? "Y" : "!"}
             </div>
-          </div>
-        </article>
+            <div className="message__content">
+              <header className="message__meta">
+                <span>{message.title}</span>
+                <span>{message.at}</span>
+              </header>
+              <div className={message.role === "system" ? "message__bubble message__bubble--warning" : "message__bubble"}>
+                <p>{message.body}</p>
+              </div>
+            </div>
+          </article>
+        ))}
 
         <article className="message message--assistant">
           <div className="message__avatar" aria-hidden="true">Y</div>
           <div className="message__content">
             <header className="message__meta">
-              <span>Agent 运行</span>
-              <span>{model.provider} · {selectedModel}</span>
+              <span>运行约束</span>
+              <span>{model.provider} · {model.model}</span>
             </header>
             <div className="message__bubble">
-              <p>已连接本地 sidecar。桌面端只展示状态、收集追加信息和发起可信确认；文件、Git、shell 与 Agent loop 都由 sidecar 执行。</p>
               <ul className="message-facts" aria-label="当前运行约束">
                 <li>{model.budget.tokenLimit} tokens</li>
                 <li>{model.budget.timeLimitMinutes} 分钟</li>
@@ -112,7 +199,14 @@ export function TaskPane({
 
       <div className="composer" aria-label="输入与运行控制">
         <label className="composer__input">
-          <textarea aria-label="追加信息" disabled={!model.appendEnabled} placeholder="输入约束、日志或复现步骤。支持图片/文件引用由 API 能力决定。" rows={3} />
+          <textarea
+            aria-label="追加信息"
+            disabled={!model.appendEnabled}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+            placeholder="输入约束、日志或复现步骤。支持图片/文件引用由 API 能力决定。"
+            rows={3}
+            value={draft}
+          />
         </label>
         <div className="composer__footer">
           <div className="attachment-row" aria-label="附件入口">
@@ -120,19 +214,30 @@ export function TaskPane({
             <button className="icon-button" type="button">文件</button>
           </div>
           <label className="plan-toggle">
-            <input checked={planMode} onChange={(event) => setPlanMode(event.currentTarget.checked)} type="checkbox" />
-            <span>Plan 模式</span>
+            <input
+              checked={model.planMode}
+              onChange={(event) => onCommand({ type: "set_plan_mode", payload: { enabled: event.currentTarget.checked } })}
+              type="checkbox"
+            />
+            <span>{uiText(locale, "planMode")}</span>
           </label>
-          <ModelSelector model={selectedModel} models={model.models} runState={model.runState} onChange={setSelectedModel} />
+          <ModelSelector
+            locale={locale}
+            provider={model.provider}
+            model={model.model}
+            models={model.models}
+            runState={model.runState}
+            onChange={(nextProvider, nextModel) => onCommand({ type: "switch_model", payload: { provider: nextProvider, model: nextModel } })}
+          />
           <div className="button-row">
             <button className="yg-button" onClick={() => onCommand({ type: "stop_run" })} type="button">
               停止
             </button>
             <button className="yg-button" onClick={() => onCommand({ type: "resume_run" })} type="button">
-              恢复
+              运行
             </button>
-            <button className="yg-button yg-button--primary" onClick={() => onCommand({ type: "append_message" })} type="button">
-              发送
+            <button className="yg-button yg-button--primary" onClick={sendDraft} type="button">
+              {runAfterSend ? "发送并运行" : "发送"}
             </button>
           </div>
         </div>
