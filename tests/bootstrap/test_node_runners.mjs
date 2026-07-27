@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const COMMANDS = ['test:runners', 'test:python', 'lint:python', 'typecheck:python'];
+const COMMANDS = [
+  'test:runners',
+  'test:python',
+  'lint:python',
+  'typecheck:python',
+  'check:landing',
+  'scan:framework-boundary',
+  'scan:secrets',
+];
 
 function pythonPath(cwd, platform) {
   const suffix = platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python';
@@ -19,7 +27,7 @@ function fixturePythonRunner({ platform, cwd, argv, env, exists, spawn }) {
   return { status: result.status, interpreter };
 }
 
-function runnerOracle({ cwd, platform, statuses = [0, 0, 0, 0] }) {
+function runnerOracle({ cwd, platform, statuses = COMMANDS.map(() => 0) }) {
   if (!['darwin', 'linux', 'win32'].includes(platform)) return { code: 2, calls: [] };
   const calls = [];
   for (const [index, status] of statuses.entries()) {
@@ -61,7 +69,7 @@ test('test_owned_runner_fixture_and_oracle', () => {
   assert.notDeepEqual(constantSuccessRunner(), expectedFailure);
   assert.equal(runnerOracle({ cwd: '/fixture', platform: 'freebsd' }).code, 2);
   assert.notDeepEqual(runnerOracle({ cwd: '/fixture', platform: 'linux', statuses: [0, 0, 0, 0] }).calls, []);
-  assert.notDeepEqual(runnerOracle({ cwd: '/fixture', platform: 'linux', statuses: [0, 0, 0] }).calls,
+  assert.notDeepEqual(runnerOracle({ cwd: '/fixture', platform: 'linux', statuses: COMMANDS.slice(0, -1).map(() => 0) }).calls,
     COMMANDS.map(name => ['npm', ['run', name]]));
 });
 

@@ -1,7 +1,15 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-export const TEST_COMMANDS = Object.freeze(['test:runners', 'test:python', 'lint:python', 'typecheck:python']);
+export const TEST_COMMANDS = Object.freeze([
+  'test:runners',
+  'test:python',
+  'lint:python',
+  'typecheck:python',
+  'check:landing',
+  'scan:framework-boundary',
+  'scan:secrets',
+]);
 
 function supportsNode22(version) {
   const match = /^(\d+)\.(\d+)\.\d+$/.exec(version);
