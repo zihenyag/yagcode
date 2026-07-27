@@ -48,7 +48,7 @@ export function ModelSelector({
           </option>
         ))}
       </select>
-      <small>{locked ? uiText(locale, "modelSwitchLocked") : uiText(locale, "modelSwitchReady")}</small>
+      {locked ? <small>{uiText(locale, "modelSwitchLocked")}</small> : null}
     </label>
   );
 }
@@ -97,6 +97,44 @@ function shouldRunAfterSend(runState: string): boolean {
   return runState === "IDLE" || runState === "READY" || runState === "STOPPED" || runState === "FAILED";
 }
 
+function ArrowUpIcon() {
+  return (
+    <svg aria-hidden="true" className="composer-icon" focusable="false" viewBox="0 0 24 24">
+      <path d="M12 18V6" />
+      <path d="M7 11l5-5 5 5" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg aria-hidden="true" className="composer-icon composer-icon--stop" focusable="false" viewBox="0 0 24 24">
+      <rect height="8" rx="1.5" width="8" x="8" y="8" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg aria-hidden="true" className="attachment-icon" focusable="false" viewBox="0 0 24 24">
+      <rect height="14" rx="2.5" width="16" x="4" y="5" />
+      <path d="M8 15l3-3 2.5 2.5L15 13l3 3" />
+      <circle cx="9" cy="9" r="1.2" />
+    </svg>
+  );
+}
+
+function FileIcon() {
+  return (
+    <svg aria-hidden="true" className="attachment-icon" focusable="false" viewBox="0 0 24 24">
+      <path d="M8 4h6l4 4v12H8z" />
+      <path d="M14 4v5h5" />
+      <path d="M10 13h6" />
+      <path d="M10 16h5" />
+    </svg>
+  );
+}
+
 export function TaskPane({
   model,
   locale = "zh-Hans",
@@ -120,11 +158,22 @@ export function TaskPane({
           },
         ];
   const runAfterSend = shouldRunAfterSend(model.runState);
+  const runActive = isModelLocked(model.runState);
+  const hasDraft = draft.trim().length > 0;
+  const actionStopsRun = runActive && !hasDraft;
+  const actionLabel = actionStopsRun ? "停止" : runActive ? "追加信息" : runAfterSend ? "发送并运行" : "发送";
   function sendDraft() {
     const text = draft.trim();
     if (text.length === 0) return;
     onCommand({ type: runAfterSend ? "send_and_resume" : "append_message", payload: { text } });
     setDraft("");
+  }
+  function runComposerAction() {
+    if (actionStopsRun) {
+      onCommand({ type: "stop_run" });
+      return;
+    }
+    sendDraft();
   }
   return (
     <section className="workbench-pane workbench-pane--task" aria-labelledby="task-heading">
@@ -210,8 +259,12 @@ export function TaskPane({
         </label>
         <div className="composer__footer">
           <div className="attachment-row" aria-label="附件入口">
-            <button className="icon-button" type="button">图片</button>
-            <button className="icon-button" type="button">文件</button>
+            <button aria-label="上传图片" className="icon-button icon-button--attachment" title="上传图片" type="button">
+              <ImageIcon />
+            </button>
+            <button aria-label="上传文件" className="icon-button icon-button--attachment" title="上传文件" type="button">
+              <FileIcon />
+            </button>
           </div>
           <label className="plan-toggle">
             <input
@@ -229,17 +282,16 @@ export function TaskPane({
             runState={model.runState}
             onChange={(nextProvider, nextModel) => onCommand({ type: "switch_model", payload: { provider: nextProvider, model: nextModel } })}
           />
-          <div className="button-row">
-            <button className="yg-button" onClick={() => onCommand({ type: "stop_run" })} type="button">
-              停止
-            </button>
-            <button className="yg-button" onClick={() => onCommand({ type: "resume_run" })} type="button">
-              运行
-            </button>
-            <button className="yg-button yg-button--primary" onClick={sendDraft} type="button">
-              {runAfterSend ? "发送并运行" : "发送"}
-            </button>
-          </div>
+          <button
+            aria-label={actionLabel}
+            className={actionStopsRun ? "composer-action composer-action--stop" : "composer-action composer-action--send"}
+            disabled={!actionStopsRun && (!model.appendEnabled || !hasDraft)}
+            onClick={runComposerAction}
+            title={actionLabel}
+            type="button"
+          >
+            {actionStopsRun ? <StopIcon /> : <ArrowUpIcon />}
+          </button>
         </div>
       </div>
     </section>

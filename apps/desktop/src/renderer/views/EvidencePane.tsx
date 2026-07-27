@@ -15,7 +15,9 @@ export interface EvidencePaneProps {
   onIntent(intent: { actionId: string; highRisk: boolean }): void;
 }
 
-const panelTabs = ["审查", "Changes", "记忆", "隐私", "权限", "设置", "审计", "AGENT"] as const;
+const floatingPanels = ["审阅", "记忆", "隐私", "权限", "审计", "设置", "AGENT"] as const;
+
+export type FloatingPanelId = (typeof floatingPanels)[number];
 
 function reviewTone(state: string): "success" | "warning" | "danger" | "info" | "neutral" {
   if (state === "READY" || state === "ACCEPTED") return "success";
@@ -30,18 +32,25 @@ function credentialTone(status: string): "success" | "warning" | "danger" {
   return "warning";
 }
 
-function normalizePanel(panel: string): (typeof panelTabs)[number] {
+export function normalizeFloatingPanel(panel: string): FloatingPanelId {
   if (panel === "切换" || panel === "创建") return "AGENT";
-  if (panel === "审查" || panel === "Changes" || panel === "记忆" || panel === "隐私" || panel === "权限" || panel === "设置" || panel === "审计" || panel === "AGENT") return panel;
-  return "审查";
+  if (panel === "审查" || panel === "审阅") return "审阅";
+  if (panel === "记忆" || panel === "隐私" || panel === "权限" || panel === "设置" || panel === "审计" || panel === "AGENT") return panel;
+  return "审阅";
 }
 
 function lineNumber(value: number | null): string {
   return value === null ? "" : String(value);
 }
 
-function DiffPreview({ model }: { model: EvidenceModel }) {
-  if (model.diffFiles.length === 0) {
+function diffStatusLabel(status: "modified" | "added" | "deleted"): string {
+  if (status === "added") return "A";
+  if (status === "deleted") return "D";
+  return "M";
+}
+
+function DiffPreview({ file }: { file: EvidenceModel["diffFiles"][number] | undefined }) {
+  if (file === undefined) {
     return (
       <div className="empty-state">
         <h4>暂无 Diff</h4>
@@ -50,26 +59,85 @@ function DiffPreview({ model }: { model: EvidenceModel }) {
     );
   }
   return (
-    <div className="diff-preview" aria-label="Diff 逐行预览">
-      {model.diffFiles.map((file) => (
-        <section className="diff-file" key={file.path}>
-          <header className="diff-file__header">
-            <span className="file-status">{file.status}</span>
-            <strong>{file.path}</strong>
-            <small>+{file.additions} / -{file.deletions}</small>
-          </header>
-          <div className="diff-lines">
-            {file.lines.map((line, index) => (
-              <div className={`diff-line diff-line--${line.kind}`} key={`${file.path}-${index}`}>
-                <span className="diff-line__number">{lineNumber(line.oldLine)}</span>
-                <span className="diff-line__number">{lineNumber(line.newLine)}</span>
-                <code>{line.kind === "add" ? "+" : line.kind === "delete" ? "-" : line.kind === "hunk" ? "" : " "}{line.content}</code>
-              </div>
-            ))}
+    <section className="diff-file diff-file--selected" aria-label="Diff 逐行预览">
+      <header className="diff-file__header">
+        <span className="file-status">{file.status}</span>
+        <strong title={file.path}>{file.path}</strong>
+        <small>+{file.additions} / -{file.deletions}</small>
+      </header>
+      <div className="diff-lines">
+        {file.lines.map((line, index) => (
+          <div className={`diff-line diff-line--${line.kind}`} key={`${file.path}-${index}`}>
+            <span className="diff-line__number">{lineNumber(line.oldLine)}</span>
+            <span className="diff-line__number">{lineNumber(line.newLine)}</span>
+            <code>{line.kind === "add" ? "+" : line.kind === "delete" ? "-" : line.kind === "hunk" ? "" : " "}{line.content}</code>
           </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function isLargeDiff(files: EvidenceModel["diffFiles"]): boolean {
+  const lineCount = files.reduce((total, file) => total + file.lines.length, 0);
+  const changedLineCount = files.reduce((total, file) => total + file.additions + file.deletions, 0);
+  return files.length > 8 || lineCount > 300 || changedLineCount > 500;
+}
+
+function ChangesPanel({ demo, model, onCommand }: { demo: DemoModel; model: EvidenceModel; onCommand(command: { type: string; payload?: unknown }): void }) {
+  const [filter, setFilter] = useState("");
+  const filteredFiles = model.diffFiles.filter((file) => file.path.toLowerCase().includes(filter.trim().toLowerCase()));
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const selectedFile = filteredFiles.find((file) => file.path === selectedPath) ?? filteredFiles[0];
+  const rollbackTarget = demo.checkpoints.find((checkpoint) => checkpoint.current) ?? demo.checkpoints[0];
+  return (
+    <aside className="workbench-pane workbench-pane--evidence changes-pane" aria-label="Changes and diff">
+      <header className="changes-header">
+        <div>
+          <p className="pane-kicker">Review</p>
+          <h2>Changes</h2>
+          <p className="changes-branch">{demo.project?.branch ?? "main"} → origin/{demo.project?.branch ?? "main"}</p>
+        </div>
+        <DiffSummary filesChanged={model.diff.filesChanged} additions={model.diff.additions} deletions={model.diff.deletions} />
+      </header>
+
+      <div className="changes-filter">
+        <input aria-label="Filter files" onChange={(event) => setFilter(event.currentTarget.value)} placeholder="Filter files..." value={filter} />
+      </div>
+
+      <div className="changes-body">
+        <nav className="changed-file-tree" aria-label="Changed files">
+          {filteredFiles.length === 0 ? (
+            <div className="empty-state">
+              <p>没有匹配的文件。</p>
+            </div>
+          ) : (
+            filteredFiles.map((file) => (
+              <button
+                aria-label={`查看 ${file.path}`}
+                className={selectedFile?.path === file.path ? "changed-file changed-file--active" : "changed-file"}
+                key={file.path}
+                onClick={() => setSelectedPath(file.path)}
+                type="button"
+              >
+                <span className={`changed-file__status changed-file__status--${file.status}`}>{diffStatusLabel(file.status)}</span>
+                <span className="changed-file__path" title={file.path}>{file.path}</span>
+                <span className="changed-file__delta">+{file.additions} -{file.deletions}</span>
+              </button>
+            ))
+          )}
+        </nav>
+        <section className="changes-viewer">
+          <DiffPreview file={selectedFile} />
+          {isLargeDiff(model.diffFiles) ? <p className="large-diff-note">ⓘ This diff is large, showing one file at a time</p> : null}
+          {rollbackTarget ? (
+            <button className="mini-button rollback-shortcut" onClick={() => onCommand({ type: "rollback_checkpoint", payload: { checkpoint_id: rollbackTarget.id } })} type="button">
+              回滚到当前 checkpoint
+            </button>
+          ) : null}
         </section>
-      ))}
-    </div>
+      </div>
+    </aside>
   );
 }
 
@@ -105,12 +173,6 @@ function ReviewPanel({
             <dd>{model.review.generation}</dd>
           </div>
         </dl>
-      </section>
-
-      <section className="inspector-section" aria-labelledby="changes-heading">
-        <h3 id="changes-heading">Changes</h3>
-        <DiffSummary filesChanged={model.diff.filesChanged} additions={model.diff.additions} deletions={model.diff.deletions} />
-        <DiffPreview model={model} />
       </section>
 
       <section className="inspector-section" aria-labelledby="checkpoint-heading">
@@ -493,37 +555,41 @@ function AgentPanel({ demo, onCommand }: { demo: DemoModel; onCommand(command: {
   );
 }
 
-export function EvidencePane({ audit, demo, memory, model, settings, locale, onCommand, onIntent }: EvidencePaneProps) {
-  const selectedPanel = normalizePanel(demo.selectedPanel);
+export function FloatingWorkbenchPanel({
+  audit,
+  demo,
+  memory,
+  model,
+  settings,
+  locale,
+  panel,
+  onClose,
+  onCommand,
+  onIntent,
+}: EvidencePaneProps & { panel: string; onClose(): void }) {
+  const selectedPanel = normalizeFloatingPanel(panel);
   return (
-    <aside className="workbench-pane workbench-pane--evidence" aria-label="状态、变更与配置">
-      <nav className="inspector-tabs" aria-label="右侧面板">
-        {panelTabs.map((panel) => (
-          <button
-            className={selectedPanel === panel ? "inspector-tab inspector-tab--active" : "inspector-tab"}
-            key={panel}
-            onClick={() => onCommand({ type: "open_panel", payload: { panel } })}
-            type="button"
-          >
-            {panel}
-          </button>
-        ))}
-      </nav>
-
-      {selectedPanel === "审查" ? <ReviewPanel demo={demo} model={model} onCommand={onCommand} onIntent={onIntent} /> : null}
-      {selectedPanel === "Changes" ? (
-        <section className="inspector-section" aria-labelledby="changes-only-heading">
-          <h3 id="changes-only-heading">Changes / Diff 预览</h3>
-          <DiffSummary filesChanged={model.diff.filesChanged} additions={model.diff.additions} deletions={model.diff.deletions} />
-          <DiffPreview model={model} />
-        </section>
-      ) : null}
-      {selectedPanel === "记忆" ? <MemoryPanel memory={memory} onCommand={onCommand} /> : null}
-      {selectedPanel === "隐私" ? <PrivacyPanel demo={demo} settings={settings} onCommand={onCommand} /> : null}
-      {selectedPanel === "权限" ? <PermissionsPanel demo={demo} onCommand={onCommand} /> : null}
-      {selectedPanel === "设置" ? <SettingsPanel demo={demo} locale={locale} settings={settings} onCommand={onCommand} /> : null}
-      {selectedPanel === "审计" ? <AuditPanel audit={audit} /> : null}
-      {selectedPanel === "AGENT" ? <AgentPanel demo={demo} onCommand={onCommand} /> : null}
-    </aside>
+    <section className="floating-panel" role="dialog" aria-modal="false" aria-label={selectedPanel}>
+      <header className="floating-panel__header">
+        <div>
+          <p className="pane-kicker">Panel</p>
+          <h2>{selectedPanel}</h2>
+        </div>
+        <button aria-label="关闭悬浮窗" className="chrome-button" onClick={onClose} type="button">×</button>
+      </header>
+      <div className="floating-panel__body">
+        {selectedPanel === "审阅" ? <ReviewPanel demo={demo} model={model} onCommand={onCommand} onIntent={onIntent} /> : null}
+        {selectedPanel === "记忆" ? <MemoryPanel memory={memory} onCommand={onCommand} /> : null}
+        {selectedPanel === "隐私" ? <PrivacyPanel demo={demo} settings={settings} onCommand={onCommand} /> : null}
+        {selectedPanel === "权限" ? <PermissionsPanel demo={demo} onCommand={onCommand} /> : null}
+        {selectedPanel === "设置" ? <SettingsPanel demo={demo} locale={locale} settings={settings} onCommand={onCommand} /> : null}
+        {selectedPanel === "审计" ? <AuditPanel audit={audit} /> : null}
+        {selectedPanel === "AGENT" ? <AgentPanel demo={demo} onCommand={onCommand} /> : null}
+      </div>
+    </section>
   );
+}
+
+export function EvidencePane({ demo, model, onCommand }: EvidencePaneProps) {
+  return <ChangesPanel demo={demo} model={model} onCommand={onCommand} />;
 }

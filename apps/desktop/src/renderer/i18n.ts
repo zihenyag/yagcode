@@ -19,7 +19,6 @@ const dictionaries = {
     addCustomProviderModel: "添加自定义 Provider/模型",
     model: "模型",
     modelSwitchLocked: "中断并保存 checkpoint 后可切换",
-    modelSwitchReady: "可切换当前模型",
     planMode: "Plan 模式",
   },
   "zh-Hant": {
@@ -40,7 +39,6 @@ const dictionaries = {
     addCustomProviderModel: "新增自訂 Provider/模型",
     model: "模型",
     modelSwitchLocked: "中斷並儲存 checkpoint 後可切換",
-    modelSwitchReady: "可切換目前模型",
     planMode: "Plan 模式",
   },
   "en-US": {
@@ -61,7 +59,6 @@ const dictionaries = {
     addCustomProviderModel: "Add custom provider/model",
     model: "Model",
     modelSwitchLocked: "Interrupt and checkpoint before switching",
-    modelSwitchReady: "You can switch the current model",
     planMode: "Plan mode",
   },
   "en-GB": {
@@ -82,7 +79,6 @@ const dictionaries = {
     addCustomProviderModel: "Add custom provider/model",
     model: "Model",
     modelSwitchLocked: "Interrupt and checkpoint before switching",
-    modelSwitchReady: "You can switch the current model",
     planMode: "Plan mode",
   },
 } as const;

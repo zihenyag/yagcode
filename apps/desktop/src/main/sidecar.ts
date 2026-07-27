@@ -163,6 +163,7 @@ export class SidecarController {
   async stop(): Promise<void> {
     const child = this.child;
     this.child = undefined;
+    this.connection = undefined;
     if (child === undefined || child.killed) return;
     child.kill(this.environment.platform === "win32" ? undefined : "SIGTERM");
   }

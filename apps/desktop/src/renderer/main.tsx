@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 import { createSidecarClient } from "./api/client.js";
 import type { SidecarClient, WorkbenchApiSnapshot, WorkbenchCommand } from "./api/client.js";
+import { createScreenshotSceneClient, screenshotInitialPanel } from "./demo/screenshotClient.js";
 
 type BootstrapWindow = Window & {
   yagcodeClient?: SidecarClient;
@@ -227,12 +228,25 @@ function devInjectedConnection(): StartupConnection | null {
   return { baseUrl, token, connected: true };
 }
 
+function screenshotSceneFromLocation(): string | null {
+  try {
+    return new URL(window.location.href).searchParams.get("yagcodeScreenshotScene");
+  } catch {
+    return null;
+  }
+}
+
 const root = document.getElementById("root");
 if (root === null) throw new Error("ROOT_ELEMENT_MISSING");
+
+const screenshotScene = screenshotSceneFromLocation();
+const initialFloatingPanel = screenshotInitialPanel(screenshotScene);
 
 async function resolveClient(): Promise<SidecarClient> {
   const bootstrap = window as BootstrapWindow;
   if (bootstrap.yagcodeClient) return bootstrap.yagcodeClient;
+  const screenshotClient = createScreenshotSceneClient(screenshotScene);
+  if (screenshotClient !== null) return screenshotClient;
   const connection = await bootstrap.yagcode?.getStartupConnection?.();
   if (isStartupConnection(connection) && connection.connected === true && connection.baseUrl.length > 0 && connection.token.length > 0) {
     return createSidecarClient({ baseUrl: connection.baseUrl, token: connection.token });
@@ -247,14 +261,14 @@ async function resolveClient(): Promise<SidecarClient> {
 const rootHandle = createRoot(root);
 rootHandle.render(
   <React.StrictMode>
-    <App client={createUnavailableClient()} />
+    <App client={createUnavailableClient()} initialFloatingPanel={initialFloatingPanel} />
   </React.StrictMode>,
 );
 
 void resolveClient().catch(() => createUnavailableClient()).then((client) => {
   rootHandle.render(
     <React.StrictMode>
-      <App client={client} />
+      <App client={client} initialFloatingPanel={initialFloatingPanel} />
     </React.StrictMode>,
   );
 });

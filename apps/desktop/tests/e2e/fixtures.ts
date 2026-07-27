@@ -1,16 +1,19 @@
 import { test as base, _electron as electron, expect } from "@playwright/test";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import type { Socket } from "node:net";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const repoRoot = resolve(desktopRoot, "../..");
+const electronUserDataDirs = new WeakMap<ElectronApplication, string>();
 
 function npmRunScriptCommand(script: string): { command: string; args: string[] } {
   if (process.platform !== "win32") return { command: "npm", args: ["run", script] };
@@ -743,12 +746,14 @@ export function buildDesktopForE2e(): void {
 
 export async function launchElectronApp(fixtureSidecar: FixtureSidecar): Promise<ElectronApplication> {
   const executablePath = require("electron") as string;
+  const userDataDir = mkdtempSync(join(tmpdir(), "yagcode-electron-e2e-"));
+  const { YAGCODE_CAPTURE_LANDING_SCREENSHOTS: _captureLandingScreenshots, ...electronEnv } = process.env;
   const app = await electron.launch({
     executablePath,
-    args: [resolve(desktopRoot, "dist/main/main.js")],
+    args: [`--user-data-dir=${userDataDir}`, resolve(desktopRoot, "dist/main/main.js")],
     cwd: desktopRoot,
     env: {
-      ...process.env,
+      ...electronEnv,
       YAGCODE_PROJECT_ROOT: repoRoot,
       YAGCODE_SIDECAR_BASE_URL: fixtureSidecar.baseUrl,
       YAGCODE_SIDECAR_TOKEN: fixtureSidecar.token,
@@ -757,17 +762,35 @@ export async function launchElectronApp(fixtureSidecar: FixtureSidecar): Promise
       YAGCODE_E2E: "1"
     }
   });
+  electronUserDataDirs.set(app, userDataDir);
   return app;
 }
 
 async function closeElectronApp(app: ElectronApplication): Promise<void> {
   const child = app.process();
-  await app.close().catch(() => {});
+  const userDataDir = electronUserDataDirs.get(app);
+  await app.evaluate(({ app: electronApp }) => {
+    electronApp.exit(0);
+  }).catch(() => {});
+  await Promise.race([
+    app.close(),
+    new Promise<void>((resolveClose) => {
+      setTimeout(resolveClose, 1_000);
+    }),
+  ]).catch(() => {});
   if (child.exitCode !== null || child.signalCode !== null) return;
   if (process.platform === "win32" && child.pid !== undefined) {
     spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", shell: false });
-  } else if (!child.killed) {
-    child.kill();
+  } else {
+    child.kill("SIGTERM");
+    await new Promise<void>((resolveClose) => {
+      const timer = setTimeout(resolveClose, 750);
+      child.once("exit", () => {
+        clearTimeout(timer);
+        resolveClose();
+      });
+    });
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
   }
   await new Promise<void>((resolveClose) => {
     const timer = setTimeout(resolveClose, 1_000);
@@ -776,6 +799,10 @@ async function closeElectronApp(app: ElectronApplication): Promise<void> {
       resolveClose();
     });
   });
+  if (userDataDir !== undefined) {
+    rmSync(userDataDir, { force: true, recursive: true });
+    electronUserDataDirs.delete(app);
+  }
 }
 
 export async function completeFirstRunOnboarding(window: Page, fixtureSidecar: FixtureSidecar): Promise<void> {

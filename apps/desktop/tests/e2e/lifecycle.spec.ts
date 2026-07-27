@@ -30,6 +30,25 @@ test("first-run desktop onboarding uses the native directory bridge and command 
   expect(fixtureSidecar.commandTypes()).toEqual(["create_agent", "open_folder", "bind_api", "create_thread"]);
 });
 
+test("macOS dock activation recreates the main window after it was closed", async ({ electronApp, window }) => {
+  test.skip(process.platform !== "darwin", "macOS activate lifecycle only");
+
+  await expect(window.locator("#onboarding-heading")).toHaveText("创建 AGENT 档案");
+  await electronApp.evaluate(async ({ BrowserWindow }) => {
+    const current = BrowserWindow.getAllWindows()[0];
+    current?.close();
+  });
+  await expect.poll(async () => (await electronApp.windows()).length).toBe(0);
+
+  const recreatedWindow = electronApp.waitForEvent("window");
+  await electronApp.evaluate(({ app }) => {
+    app.emit("activate");
+  });
+  const reopened = await recreatedWindow;
+  await reopened.waitForLoadState("domcontentloaded");
+  await expect(reopened.locator("#onboarding-heading")).toHaveText("创建 AGENT 档案");
+});
+
 test("workbench sends task input, runs an agent step, previews diff, and rolls back", async ({ fixtureSidecar, window }) => {
   await completeFirstRunOnboarding(window, fixtureSidecar);
 
@@ -39,14 +58,24 @@ test("workbench sends task input, runs an agent step, previews diff, and rolls b
   await expect(window.getByText("真实 Provider action 已完成：TASK_COMPLETE")).toBeVisible();
   await expect(window.getByText("已生成候选修改，查看右侧 Changes")).toBeVisible();
 
-  await window.getByRole("button", { name: "Changes" }).click();
-  await expect(window.getByText("src/example.py", { exact: true })).toBeVisible();
-  await expect(window.getByText(/\+\s+return 2/u)).toBeVisible();
-  await expect(window.getByText(/-\s+return 1/u)).toBeVisible();
+  await expect(window.getByLabel("Changes and diff")).toBeVisible();
+  await expect(window.getByRole("heading", { name: "Changes" })).toBeVisible();
+  await expect(window.getByRole("button", { name: "查看 src/example.py" })).toBeVisible();
+  const diffPreview = window.getByLabel("Diff 逐行预览");
+  await expect(diffPreview.getByText("src/example.py", { exact: true })).toBeVisible();
+  await expect(diffPreview.getByText(/\+\s+return 2/u)).toBeVisible();
+  await expect(diffPreview.getByText(/-\s+return 1/u)).toBeVisible();
 
-  await window.getByRole("button", { name: "审查", exact: true }).click();
-  await window.getByRole("button", { name: "回滚到这里" }).first().click();
+  await window.getByRole("button", { name: /测试 Agent/u }).click();
+  await window.getByRole("menuitem", { name: "审阅" }).click();
+  await expect(window.getByRole("dialog", { name: "审阅" })).toBeVisible();
+  await expect(window.getByRole("heading", { name: "变更审阅" })).toBeVisible();
+  await window.getByRole("button", { name: "关闭悬浮窗" }).click();
+
+  await window.getByRole("button", { name: "回滚到当前 checkpoint" }).click();
   await expect(window.getByText("暂无 Diff")).toBeVisible();
+  await window.getByRole("button", { name: /测试 Agent/u }).click();
+  await window.getByRole("menuitem", { name: "审阅" }).click();
   await expect(window.getByText("RECOVERY_REQUIRED")).toBeVisible();
   expect(fixtureSidecar.commandTypes()).toEqual([
     "create_agent",
@@ -56,8 +85,8 @@ test("workbench sends task input, runs an agent step, previews diff, and rolls b
     "append_message",
     "resume_run",
     "open_panel",
-    "open_panel",
     "rollback_checkpoint",
+    "open_panel",
   ]);
 });
 

@@ -6,7 +6,7 @@ import { adaptSnapshot, type WorkbenchModel } from "./api/adapters.js";
 import { createInitialWorkbenchState, reduceEvent } from "./state/reducer.js";
 import { NavigationPane } from "./views/NavigationPane.js";
 import { TaskPane } from "./views/TaskPane.js";
-import { EvidencePane } from "./views/EvidencePane.js";
+import { EvidencePane, FloatingWorkbenchPanel } from "./views/EvidencePane.js";
 import { OnboardingPane } from "./views/OnboardingPane.js";
 
 declare global {
@@ -50,10 +50,11 @@ function commandPayloadText(commandValue: WorkbenchCommand): string {
   return typeof text === "string" ? text.trim() : "";
 }
 
-export function App({ client }: { client: SidecarClient }) {
+export function App({ client, initialFloatingPanel = null }: { client: SidecarClient; initialFloatingPanel?: string | null }) {
   const [model, setModel] = useState<WorkbenchModel | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [blockingRuns, setBlockingRuns] = useState<readonly { id: string; state: string; title?: string }[]>([]);
+  const [floatingPanel, setFloatingPanel] = useState<string | null>(initialFloatingPanel);
 
   async function refreshSnapshot(): Promise<void> {
     const snapshot = await client.getSnapshot();
@@ -199,6 +200,13 @@ export function App({ client }: { client: SidecarClient }) {
       void sendAndResume(commandValue);
       return;
     }
+    if (commandValue.type === "open_panel") {
+      const payload = commandValue.payload;
+      if (typeof payload === "object" && payload !== null && !Array.isArray(payload)) {
+        const panel = (payload as Record<string, unknown>).panel;
+        if (typeof panel === "string") setFloatingPanel(panel);
+      }
+    }
     void runCommand(commandValue, { optimisticRun: commandValue.type === "resume_run" });
   }
 
@@ -272,6 +280,20 @@ export function App({ client }: { client: SidecarClient }) {
           settings={model.settings}
         />
       </div>
+      {floatingPanel !== null ? (
+        <FloatingWorkbenchPanel
+          audit={model.audit}
+          demo={model.demo}
+          locale={model.settings.locale}
+          memory={model.memory}
+          model={model.evidence}
+          onClose={() => setFloatingPanel(null)}
+          onCommand={command}
+          onIntent={requestIntent}
+          panel={floatingPanel}
+          settings={model.settings}
+        />
+      ) : null}
     </main>
   );
 }

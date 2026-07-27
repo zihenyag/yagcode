@@ -1,4 +1,5 @@
 import { app, dialog, ipcMain, Notification } from "electron";
+import type { BrowserWindow } from "electron";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSecureWindow, applySessionSecurity, registerRendererProtocol, DESKTOP_ORIGIN } from "./security.js";
@@ -12,6 +13,13 @@ const distRoot = desktopRoot;
 const preloadPath = join(desktopRoot, "preload", "index.cjs");
 const intentPreloadPath = join(desktopRoot, "preload", "intent.cjs");
 const projectRoot = process.env.YAGCODE_PROJECT_ROOT ?? resolve(desktopRoot, "../..");
+const screenshotSceneIds = [
+  "01-create-agent",
+  "02-ready-workbench",
+  "03-diff-review",
+  "04-settings-api-bindings",
+  "05-permissions-panel",
+] as const;
 const pendingIntentResults = new Map<
   string,
   { ok: true; result: unknown } | { ok: false; error: string }
@@ -38,10 +46,55 @@ function storeIntentResult(requestId: string, result: { ok: true; result: unknow
   pendingIntentResults.set(requestId, result);
 }
 
+async function loadRenderer(window: BrowserWindow, screenshotScene?: string): Promise<void> {
+  const rendererUrl = process.env.YAGCODE_DESKTOP_RENDERER_URL;
+  if (rendererUrl !== undefined && rendererUrl.length > 0) {
+    const url = new URL(rendererUrl);
+    if (screenshotScene !== undefined) url.searchParams.set("yagcodeScreenshotScene", screenshotScene);
+    await window.loadURL(url.toString());
+  } else {
+    const suffix = screenshotScene === undefined ? "" : `?yagcodeScreenshotScene=${encodeURIComponent(screenshotScene)}`;
+    await window.loadURL(`${DESKTOP_ORIGIN}/index.html${suffix}`);
+  }
+}
+
 async function main(): Promise<void> {
   await app.whenReady();
   applySessionSecurity();
   registerRendererProtocol({ distRoot });
+
+  if (process.env.YAGCODE_DESKTOP_SCREENSHOT_SCENES === "1") {
+    let screenshotWindows: BrowserWindow[] = [];
+    async function createScreenshotWindows(): Promise<void> {
+      screenshotWindows = [];
+      for (const [index, scene] of screenshotSceneIds.entries()) {
+        const window = createSecureWindow({ preloadPath, show: true });
+        window.setTitle(`YagCode screenshot ${index + 1}: ${scene}`);
+        window.setSize(1440, 960);
+        window.setMinimumSize(1080, 720);
+        window.setPosition(42 + index * 34, 42 + index * 34, false);
+        window.on("closed", () => {
+          screenshotWindows = screenshotWindows.filter((candidate) => candidate !== window);
+        });
+        screenshotWindows.push(window);
+        await loadRenderer(window, scene);
+      }
+      screenshotWindows.at(-1)?.focus();
+    }
+    await createScreenshotWindows();
+    app.on("activate", () => {
+      const visibleWindows = screenshotWindows.filter((window) => !window.isDestroyed());
+      if (visibleWindows.length > 0) {
+        visibleWindows.at(-1)?.show();
+        visibleWindows.at(-1)?.focus();
+        return;
+      }
+      void createScreenshotWindows().catch((error: unknown) => {
+        console.error(error instanceof Error ? error.message : "DESKTOP_SCREENSHOT_WINDOWS_RECREATE_FAILED");
+      });
+    });
+    return;
+  }
 
   const sidecar = new SidecarController({
     cwd: projectRoot,
@@ -50,6 +103,19 @@ async function main(): Promise<void> {
   });
   await sidecar.start();
   registerIntentHandlers(sidecar);
+  let mainWindow: BrowserWindow | null = null;
+
+  async function createMainWindow(): Promise<BrowserWindow> {
+    await sidecar.start();
+    const window = createSecureWindow({ preloadPath, show: process.env.YAGCODE_DESKTOP_SMOKE !== "1" });
+    mainWindow = window;
+    window.on("closed", () => {
+      if (mainWindow === window) mainWindow = null;
+    });
+    registerLifecycle(window, sidecar);
+    await loadRenderer(window);
+    return window;
+  }
 
   ipcMain.handle("sidecar:connection", () => sidecar.connectionView());
   ipcMain.handle("directory:choose", async () => {
@@ -68,10 +134,14 @@ async function main(): Promise<void> {
     return { ok: true };
   });
 
-  const window = createSecureWindow({ preloadPath, show: process.env.YAGCODE_DESKTOP_SMOKE !== "1" });
   ipcMain.on("intent:open", (event, payload: unknown) => {
     const request = parseIntentOpenRequest(payload);
-    void openIntentWindow({ parent: window, preloadPath: intentPreloadPath, sidecar, intentId: request.intentId }).then(
+    const parent = mainWindow;
+    if (parent === null || parent.isDestroyed()) {
+      storeIntentResult(request.requestId, { ok: false, error: "MAIN_WINDOW_UNAVAILABLE" });
+      return;
+    }
+    void openIntentWindow({ parent, preloadPath: intentPreloadPath, sidecar, intentId: request.intentId }).then(
       (result) => storeIntentResult(request.requestId, { ok: true, result }),
       (error: unknown) => {
         const message = error instanceof Error ? error.message : "INTENT_FAILED";
@@ -88,14 +158,18 @@ async function main(): Promise<void> {
     pendingIntentResults.delete(requestId);
     return { ready: true, ...result };
   });
-  registerLifecycle(window, sidecar);
+  await createMainWindow();
 
-  const rendererUrl = process.env.YAGCODE_DESKTOP_RENDERER_URL;
-  if (rendererUrl !== undefined && rendererUrl.length > 0) {
-    await window.loadURL(rendererUrl);
-  } else {
-    await window.loadURL(`${DESKTOP_ORIGIN}/index.html`);
-  }
+  app.on("activate", () => {
+    if (mainWindow !== null && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      return;
+    }
+    void createMainWindow().catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : "DESKTOP_WINDOW_RECREATE_FAILED");
+    });
+  });
 
   if (process.env.YAGCODE_DESKTOP_SMOKE === "1") {
     await sidecar.stop();
@@ -104,7 +178,7 @@ async function main(): Promise<void> {
 }
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin" || process.env.YAGCODE_E2E === "1") app.quit();
+  if (process.platform !== "darwin") app.quit();
 });
 
 void main().catch((error: unknown) => {

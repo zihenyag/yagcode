@@ -9,6 +9,7 @@
     "build:main": "tsc -p tsconfig.main.json",
     "dev:renderer": "node scripts/dev-renderer.mjs",
     "dev:desktop": "node scripts/dev-desktop.mjs",
+    "dev:screenshots": "node scripts/dev-screenshots.mjs",
     "test": "vitest run src/renderer",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",

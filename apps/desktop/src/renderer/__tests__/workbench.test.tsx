@@ -8,7 +8,7 @@ import { reviewFixture } from "@yagcode/contracts/fixtures";
 import type { TaskModel } from "../api/adapters.js";
 
 interface LoadedWorkbenchModule {
-  App: React.ComponentType<{ client: unknown }>;
+  App: React.ComponentType<{ client: unknown; initialFloatingPanel?: string | null }>;
 }
 
 interface LoadedTaskPaneModule {
@@ -25,6 +25,11 @@ interface LoadedTaskPaneModule {
   }>;
 }
 
+interface LoadedScreenshotModule {
+  createScreenshotSceneClient(scene: string | null): unknown | null;
+  screenshotInitialPanel(scene: string | null): string | null;
+}
+
 async function loadWorkbenchProduction(): Promise<LoadedWorkbenchModule> {
   const modulePath = "../App";
   try {
@@ -38,6 +43,15 @@ async function loadTaskPaneProduction(): Promise<LoadedTaskPaneModule> {
   const modulePath = "../views/TaskPane";
   try {
     return (await import(modulePath)) as LoadedTaskPaneModule;
+  } catch (error) {
+    throw new Error(`RENDERER_PRODUCTION_MISSING:${modulePath}`, { cause: error });
+  }
+}
+
+async function loadScreenshotProduction(): Promise<LoadedScreenshotModule> {
+  const modulePath = "../demo/screenshotClient";
+  try {
+    return (await import(modulePath)) as LoadedScreenshotModule;
   } catch (error) {
     throw new Error(`RENDERER_PRODUCTION_MISSING:${modulePath}`, { cause: error });
   }
@@ -377,7 +391,7 @@ describe("desktop workbench", () => {
     expect(client.command).toHaveBeenCalledWith({ type: "create_thread", payload: { title: "调试一个权限边界 bug" } });
 
     expect(await screen.findByRole("log", { name: "任务对话" })).toBeVisible();
-    expect(screen.getByText("src/example.py")).toBeVisible();
+    expect(screen.getAllByText("src/example.py").length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders a local-engineering conversation workbench instead of a dashboard", async () => {
@@ -386,16 +400,24 @@ describe("desktop workbench", () => {
     expect(await screen.findByRole("log", { name: "任务对话" })).toBeVisible();
     expect(screen.getByText("用户请求")).toBeVisible();
     expect(screen.getByText("Agent 运行")).toBeVisible();
-    expect(await screen.findByRole("heading", { name: "变更审阅" })).toBeVisible();
-    expect(screen.getByText("验证证据")).toBeVisible();
-    expect(screen.getByText("风险与未覆盖项")).toBeVisible();
-    expect(screen.getByText("src/example.py")).toBeVisible();
+    expect(await screen.findByLabelText("Changes and diff")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Changes" })).toBeVisible();
+    expect(screen.getAllByText("src/example.py").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("+ return 2")).toBeVisible();
     expect(screen.getByText("- return 1")).toBeVisible();
-    expect(screen.getByRole("button", { name: "接受当前候选" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "+ 新项目" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "在 yagcode 下新建线程" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "变更审阅" })).toBeNull();
+    expect(screen.queryByText("验证证据")).toBeNull();
+    expect(screen.queryByText("风险与未覆盖项")).toBeNull();
     expect(screen.queryByRole("heading", { name: "记忆" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "审计" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "设置" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /默认档案/u }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "审阅" }));
+    expect(await screen.findByRole("dialog", { name: "审阅" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "接受当前候选" })).toBeEnabled();
   });
 
   it("disables model changes for every active execution state", async () => {
@@ -432,8 +454,34 @@ describe("desktop workbench", () => {
 
     const selector = screen.getByRole("combobox", { name: "模型" });
     expect(selector).toHaveValue("njusehub::kimi-k2.7-code");
+    expect(screen.queryByText("可切换当前模型")).toBeNull();
     fireEvent.change(selector, { target: { value: "kimi::kimi-k2.7-code" } });
     expect(onChange).toHaveBeenCalledWith("kimi", "kimi-k2.7-code");
+  });
+
+  it("renders static screenshot scenes for manual landing-page capture", async () => {
+    const { App } = await loadWorkbenchProduction();
+    const { createScreenshotSceneClient, screenshotInitialPanel } = await loadScreenshotProduction();
+
+    const createAgentClient = createScreenshotSceneClient("01-create-agent");
+    expect(createAgentClient).not.toBeNull();
+    render(<App client={createAgentClient} initialFloatingPanel={screenshotInitialPanel("01-create-agent")} />);
+    expect((await screen.findAllByRole("heading", { name: "创建 AGENT 档案" }))[0]).toBeVisible();
+    cleanup();
+
+    const settingsClient = createScreenshotSceneClient("04-settings-api-bindings");
+    expect(settingsClient).not.toBeNull();
+    render(<App client={settingsClient} initialFloatingPanel={screenshotInitialPanel("04-settings-api-bindings")} />);
+    expect(await screen.findByRole("heading", { name: "调试一个权限边界 bug" })).toBeVisible();
+    expect(screen.getByLabelText("Diff 逐行预览")).toBeVisible();
+    expect(screen.queryByText(/This diff is large/u)).toBeNull();
+    expect(screen.getByRole("dialog", { name: "设置" })).toBeVisible();
+    cleanup();
+
+    const permissionsClient = createScreenshotSceneClient("05-permissions-panel");
+    expect(permissionsClient).not.toBeNull();
+    render(<App client={permissionsClient} initialFloatingPanel={screenshotInitialPanel("05-permissions-panel")} />);
+    expect(await screen.findByRole("dialog", { name: "权限" })).toBeVisible();
   });
 
   it("does not render an empty thread title as a user message", async () => {
@@ -476,26 +524,27 @@ describe("desktop workbench", () => {
   it("lets the user choose system light dark theme and four supported locales", async () => {
     const { App } = await loadWorkbenchProduction();
     const initial = fixtureSnapshot("READY");
-    initial.demo.selected_panel = "设置";
     const themeUpdated = fixtureSnapshot("READY");
-    themeUpdated.demo.selected_panel = "设置";
     themeUpdated.settings.theme_mode = "dark";
     const localeUpdated = fixtureSnapshot("READY");
-    localeUpdated.demo.selected_panel = "设置";
     localeUpdated.settings.theme_mode = "dark";
     localeUpdated.settings.locale = "en-GB";
-    const client = fixtureClient([initial, themeUpdated, localeUpdated]);
+    const client = fixtureClient([initial, initial, themeUpdated, localeUpdated]);
 
     const { container } = render(<App client={client} />);
-    const root = await screen.findByLabelText("状态、变更与配置");
+    const root = await screen.findByLabelText("Changes and diff");
     expect(container.querySelector(".workbench")).toHaveAttribute("data-theme-mode", "system");
     expect(root).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: /默认档案/u }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "设置" }));
+    expect(await screen.findByRole("dialog", { name: "设置" })).toBeVisible();
 
     fireEvent.change(screen.getByRole("combobox", { name: "主题" }), { target: { value: "dark" } });
     expect(client.command).toHaveBeenCalledWith({ type: "set_theme_mode", payload: { mode: "dark" } });
     await waitFor(() => expect(container.querySelector(".workbench")).toHaveAttribute("data-theme-mode", "dark"));
 
-    fireEvent.change(screen.getByRole("combobox", { name: "语言" }), { target: { value: "en-GB" } });
+    fireEvent.change(screen.getByRole("combobox", { name: /语言|Language/u }), { target: { value: "en-GB" } });
     expect(client.command).toHaveBeenCalledWith({ type: "set_locale", payload: { locale: "en-GB" } });
     expect(await screen.findByRole("heading", { name: "Settings / API bindings" })).toBeVisible();
   });
@@ -509,13 +558,25 @@ describe("desktop workbench", () => {
     expect(styles).toMatch(/\.yg-diff-summary__metric--files\s*\{[\s\S]*background: var\(--status-neutral-bg\);/);
   });
 
+  it("keeps diff scrolling on the whole code block instead of each line", () => {
+    const styles = readRendererStyles();
+    expect(styles).toMatch(/\.diff-file--selected \.diff-lines\s*\{[\s\S]*overflow: auto;/);
+    expect(styles).not.toMatch(/\.diff-line code\s*\{[\s\S]*overflow-x: auto;/);
+    expect(styles).toMatch(/\.diff-line code\s*\{[\s\S]*overflow: visible;/);
+    expect(styles).not.toMatch(/\.diff-file--selected\s*\{[\s\S]*flex:\s*1;/);
+    expect(styles).not.toMatch(/\.diff-file--selected \.diff-lines\s*\{[\s\S]*flex:\s*1;/);
+    expect(styles).toMatch(/\.diff-lines\s*\{[\s\S]*align-content: start;/);
+    expect(styles).toMatch(/\.changed-file-tree\s*\{[\s\S]*align-content: start;/);
+  });
+
   it("exposes custom provider and model controls without leaking the API key", async () => {
     const { App } = await loadWorkbenchProduction();
     const initial = fixtureSnapshot("READY");
-    initial.demo.selected_panel = "设置";
     const client = fixtureClient(initial);
     render(<App client={client} />);
 
+    fireEvent.click(await screen.findByRole("button", { name: /默认档案/u }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "设置" }));
     await screen.findByRole("heading", { name: "设置 / API 绑定" });
     fireEvent.change(screen.getByRole("textbox", { name: "设置页自定义 Provider ID" }), { target: { value: "localise" } });
     fireEvent.change(screen.getByRole("textbox", { name: "设置页自定义 Provider 显示名称" }), { target: { value: "Local ISE" } });
@@ -564,8 +625,12 @@ describe("desktop workbench", () => {
 
     render(<App client={client} />);
     const input = await screen.findByRole("textbox", { name: "追加信息" });
+    const sendButton = screen.getByRole("button", { name: "发送并运行" });
+    expect(sendButton.textContent).toBe("");
+    expect(screen.getByRole("button", { name: "上传图片" }).textContent).toBe("");
+    expect(screen.getByRole("button", { name: "上传文件" }).textContent).toBe("");
     fireEvent.change(input, { target: { value: "点击发送后应该直接运行" } });
-    fireEvent.click(screen.getByRole("button", { name: "发送并运行" }));
+    fireEvent.click(sendButton);
 
     await waitFor(() =>
       expect(client.command).toHaveBeenNthCalledWith(1, {
@@ -575,6 +640,39 @@ describe("desktop workbench", () => {
     );
     expect(client.command).toHaveBeenNthCalledWith(2, { type: "resume_run" });
     expect(await screen.findByText("已生成候选修改，查看右侧 Changes")).toBeVisible();
+  });
+
+  it("uses one icon-only composer action for append or stop while a run is active", async () => {
+    const { TaskPane } = await loadTaskPaneProduction();
+    const onCommand = vi.fn();
+    const runningTask: TaskModel = {
+      threadId: "thread-1",
+      title: "运行中的线程",
+      runState: "RUNNING",
+      provider: "openai",
+      model: "gpt-5.6-sol",
+      models: [{ id: "gpt-5.6-sol", label: "OpenAI gpt-5.6-sol", provider: "openai" }],
+      planMode: true,
+      budget: { tokenLimit: 1500, timeLimitMinutes: 60 },
+      retryPolicy: { connectionRetries: 5, toolRetries: 3, modelRetries: 5 },
+      compactAfterLines: 1500,
+      appendEnabled: true,
+      messages: [],
+    };
+
+    const { unmount } = render(<TaskPane model={runningTask} onCommand={onCommand} />);
+    const stopButton = screen.getByRole("button", { name: "停止" });
+    expect(stopButton.textContent).toBe("");
+    fireEvent.click(stopButton);
+    expect(onCommand).toHaveBeenCalledWith({ type: "stop_run" });
+    unmount();
+
+    render(<TaskPane model={runningTask} onCommand={onCommand} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "追加信息" }), { target: { value: "补充一条日志" } });
+    const appendButton = screen.getByRole("button", { name: "追加信息" });
+    expect(appendButton.textContent).toBe("");
+    fireEvent.click(appendButton);
+    expect(onCommand).toHaveBeenCalledWith({ type: "append_message", payload: { text: "补充一条日志" } });
   });
 
   it("refetches the real sidecar snapshot after sending appended context", async () => {
@@ -591,7 +689,7 @@ describe("desktop workbench", () => {
     render(<App client={client} />);
     const input = await screen.findByRole("textbox", { name: "追加信息" });
     fireEvent.change(input, { target: { value: "复现步骤：点击发送" } });
-    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+    fireEvent.click(screen.getByRole("button", { name: "追加信息" }));
 
     expect(client.command).toHaveBeenCalledWith({
       type: "append_message",
@@ -603,7 +701,7 @@ describe("desktop workbench", () => {
   it("has no serious or critical automated accessibility violations", async () => {
     const { App } = await loadWorkbenchProduction();
     const { container } = render(<App client={fixtureClient(fixtureSnapshot("READY"))} />);
-    await screen.findByRole("heading", { name: "变更审阅" });
+    await screen.findByLabelText("Changes and diff");
     const results = await axe.run(container, { rules: { "color-contrast": { enabled: false } } });
     const blocking = results.violations.filter((violation) => violation.impact === "serious" || violation.impact === "critical");
     expect(blocking).toEqual([]);

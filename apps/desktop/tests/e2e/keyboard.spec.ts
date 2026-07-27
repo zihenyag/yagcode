@@ -24,8 +24,9 @@ test("keyboard users can reach plan mode, model selection, and run controls", as
   await focusByTab(window, planMode);
   await expect(planMode).toBeFocused();
   await expect(window.getByRole("combobox", { name: "模型" })).toBeEnabled();
-  await focusByTab(window, window.getByRole("button", { name: "停止" }));
-  await expect(window.getByRole("button", { name: "停止" })).toBeFocused();
+  await window.getByRole("textbox", { name: "追加信息" }).fill("键盘可达性检查");
+  await focusByTab(window, window.getByRole("button", { name: "发送并运行" }));
+  await expect(window.getByRole("button", { name: "发送并运行" })).toBeFocused();
 });
 
 test("trusted intent confirmation works with keyboard only", async ({ electronApp, fixtureSidecar, window }) => {

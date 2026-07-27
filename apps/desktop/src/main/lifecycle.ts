@@ -1,9 +1,8 @@
 import type { BrowserWindow } from "electron";
 import type { SidecarController } from "./sidecar.js";
 
-let closeAllowed = false;
-
 export function registerLifecycle(window: BrowserWindow, sidecar: SidecarController): void {
+  let closeAllowed = false;
   window.on("close", (event) => {
     if (closeAllowed) return;
     event.preventDefault();
