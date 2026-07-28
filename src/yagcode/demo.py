@@ -1,4 +1,4 @@
-"""Deterministic mechanism demo for the YagCode release."""
+"""Deterministic mechanism demo for YagCode."""
 
 from __future__ import annotations
 

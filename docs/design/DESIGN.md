@@ -1,6 +1,6 @@
 # YagCode Desktop Visual Design Contract
 
-本文件是本轮内置 design tool skill 产出的视觉系统入口。它取代旧 design tool HTML 原型里的布局细节，但不删除历史记录；历史 design tool 接收记录仍保留在 [`OPEN_DESIGN.md`](OPEN_DESIGN.md)。
+本文件记录 YagCode Desktop 的视觉系统约束，用于保持 Electron renderer、共享 UI 原语和截图素材的一致性。
 
 ## 1. Visual Theme & Atmosphere
 

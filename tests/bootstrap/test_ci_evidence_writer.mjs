@@ -26,7 +26,7 @@ test('test_owned_ci_evidence_oracle_rejects_secret_values', () => {
     commit_sha: 'a'.repeat(40),
     pipeline_id: '123',
     job_id: '456',
-    job_url: 'https://github.example/job/456',
+    job_url: 'https://github.example/zihenyag/yagcode/actions/runs/123',
     status: 'success',
     command_ids: ['test:all'],
     recorded_at_utc: '2026-07-28T00:00:00.000Z',
@@ -42,13 +42,14 @@ test('ci evidence writer and verifier produce redacted final artifacts', async (
   const writer = await import(new URL('../../scripts/write-ci-evidence.mjs', import.meta.url));
   const verifier = await import(new URL('../../scripts/verify-ci-evidence.mjs', import.meta.url));
   const root = mkdtempSync(join(tmpdir(), 'yagcode-ci-evidence-'));
-  const pending = join(root, 'offline-check.pending.json');
-  const final = join(root, 'offline-check.json');
+  const pending = join(root, 'offline-checks.pending.json');
+  const final = join(root, 'offline-checks.json');
   const env = {
-    CI_COMMIT_SHA: 'b'.repeat(40),
-    CI_PIPELINE_ID: 'pipeline-7',
-    CI_JOB_ID: 'job-9',
-    CI_JOB_URL: 'https://github.example/yagcode/-/jobs/9',
+    GITHUB_SHA: 'b'.repeat(40),
+    GITHUB_RUN_ID: 'run-7',
+    GITHUB_JOB: 'offline-checks',
+    GITHUB_SERVER_URL: 'https://github.example',
+    GITHUB_REPOSITORY: 'zihenyag/yagcode',
     SECRET_CANARY: `sk-${'should-not-appear-in-output-000000'}`,
   };
   const now = () => new Date('2026-07-28T01:02:03.004Z');
@@ -76,27 +77,34 @@ test('ci evidence writer and verifier produce redacted final artifacts', async (
 test('ensureFinal records failure when a failed job has no final evidence', async () => {
   const verifier = await import(new URL('../../scripts/verify-ci-evidence.mjs', import.meta.url));
   const root = mkdtempSync(join(tmpdir(), 'yagcode-ci-ensure-'));
-  const final = join(root, 'offline-check.json');
+  const final = join(root, 'offline-checks.json');
   const env = {
-    CI_COMMIT_SHA: 'c'.repeat(40),
-    CI_PIPELINE_ID: 'pipeline-8',
-    CI_JOB_ID: 'job-10',
-    CI_JOB_URL: 'https://github.example/yagcode/-/jobs/10',
+    GITHUB_SHA: 'c'.repeat(40),
+    GITHUB_RUN_ID: 'run-8',
+    GITHUB_JOB: 'offline-checks',
+    GITHUB_SERVER_URL: 'https://github.example',
+    GITHUB_REPOSITORY: 'zihenyag/yagcode',
   };
-  verifier.ensureFinalEvidence({ final, fallbackStatus: 'failed', commandIds: ['offline-check-job'], env, now: () => new Date('2026-07-28T02:00:00.000Z') });
+  verifier.ensureFinalEvidence({ final, fallbackStatus: 'failed', commandIds: ['offline-checks'], env, now: () => new Date('2026-07-28T02:00:00.000Z') });
   assert.equal(parseJson(final).status, 'failed');
-  assert.equal(parseJson(final).command_ids[0], 'offline-check-job');
+  assert.equal(parseJson(final).command_ids[0], 'offline-checks');
 });
 
 test('ensureFinal rejects missing success evidence', async () => {
   const verifier = await import(new URL('../../scripts/verify-ci-evidence.mjs', import.meta.url));
   const root = mkdtempSync(join(tmpdir(), 'yagcode-ci-missing-success-'));
-  const final = join(root, 'offline-check.json');
+  const final = join(root, 'offline-checks.json');
   assert.equal(existsSync(final), false);
   assert.throws(() => verifier.ensureFinalEvidence({
     final,
     fallbackStatus: 'success',
-    commandIds: ['offline-check-job'],
-    env: { CI_COMMIT_SHA: 'd'.repeat(40), CI_PIPELINE_ID: '1', CI_JOB_ID: '2', CI_JOB_URL: 'https://github.example/job/2' },
+    commandIds: ['offline-checks'],
+    env: {
+      GITHUB_SHA: 'd'.repeat(40),
+      GITHUB_RUN_ID: '1',
+      GITHUB_JOB: 'offline-checks',
+      GITHUB_SERVER_URL: 'https://github.example',
+      GITHUB_REPOSITORY: 'zihenyag/yagcode',
+    },
   }), /CI_EVIDENCE_SUCCESS_FINAL_MISSING/);
 });

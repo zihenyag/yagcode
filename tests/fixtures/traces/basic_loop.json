@@ -9,7 +9,7 @@
     "context_items": [
       {
         "kind": "task",
-        "source_id": "runtime-loop",
+        "source_id": "task:runtime-loop",
         "content_ref": "project:runtime-context",
         "content_hash": "sha256:basic-task"
       }

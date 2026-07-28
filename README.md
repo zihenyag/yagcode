@@ -4,7 +4,7 @@ YagCode is a local Coding Agent Harness for scoped, reviewable code changes.
 
 ## 项目简介
 
-YagCode 面向个人开发者和需要审查本地 AI 改动的维护者：用户把一个代码问题交给本地 Agent，Harness 负责组织上下文、调用单次 LLM Provider、解析结构化 action、执行受控工具、回灌测试反馈，并在最终接受前展示 diff、验证证据和回滚点。
+YagCode 面向需要让 AI 修改本地代码、又不想直接交出工作区控制权的开发者。用户把一个代码问题交给本地 Agent，Harness 负责组织上下文、调用单次 LLM Provider、解析结构化 action、执行受控工具、回灌测试反馈，并在最终接受前展示 diff、验证证据和回滚点。
 
 核心实现由本仓库代码完成：agent loop、action parser、tool dispatcher、memory、feedback、governance、credential flow 和 stop condition 都可在 mock/stub LLM 下离线测试。
 
@@ -61,8 +61,6 @@ npm run scan:secrets -- --scope worktree --scope history
 
 “单文件”指用户在 Release 页面下载的安装包或压缩包。安装后的 Electron App、Python sidecar 或 CLI 解包目录可以包含多个 runtime 文件。
 
-当前本地证据：macOS ARM64 桌面 DMG、macOS CLI asset、manifest verify 和 smoke 已通过，详见 `release workflows`。Windows 最新源码原生构建和 smoke 仍待 Windows runner 补齐。仓库当前没有签名、notarization、GitHub Release、Pages 公网 URL 或远程 CI pass 证据。
-
 ## 目录结构
 
 ```text
@@ -73,8 +71,7 @@ packages/ui/               桌面 UI 原语和设计 token
 packaging/                 Electron/PyInstaller runtime inventory 与 builder 配置
 scripts/                   测试、打包、manifest、CI evidence 和 Pages 构建脚本
 src/yagcode/               Harness core、policy、tools、memory、providers、API、CLI
-tests/                     mock LLM 单元测试、集成测试、对抗测试和 delivery contract
-release workflows            发布检查和风险记录
+tests/                     mock LLM 单元测试、集成测试、对抗测试和发布合同测试
 ```
 
 ## 安全边界
@@ -93,7 +90,7 @@ YagCode 的安全边界是本机操作系统账号和用户明确授权的项目
 
 目标机器第一次使用真实 Provider 时，通过桌面端或 CLI 的隐藏输入录入 key。支持状态查看、更新和清除；查看状态不会显示 key。
 
-支持的 Provider 路径包括 OpenAI-compatible endpoint、Qwen、GLM、DeepSeek 和 NJU SE Hub。当前不支持 Anthropic。离线验证可完全使用 scripted/mock Provider，不需要真实网络 key。
+支持的 Provider 路径包括 OpenAI-compatible endpoint、Qwen、GLM、DeepSeek 和 NJU SE Hub。当前不支持 Anthropic。离线测试和机制演示使用 scripted/mock Provider，不需要真实网络 key。
 
 ## 测试与机制演示
 
@@ -109,15 +106,14 @@ npm run test:all
 npm run demo
 ```
 
-演示覆盖危险动作拦截、失败反馈改变下一步 action、隔离工作区与 checkpoint 回滚。相关证据见 `release workflows`。
+演示覆盖危险动作拦截、失败反馈改变下一步 action、隔离工作区与 checkpoint 回滚。
 
 ## 已知限制
 
 - macOS Intel、Linux 桌面安装包和 universal binary 不在本项目范围内。
 - 当前安装包未签名；macOS Gatekeeper 和 Windows SmartScreen 可能提示未知开发者。
-- Windows 最新源码的桌面 `.exe` 与 CLI `.zip` 还没有在本轮原生 runner 上完成验证。
-- 远程 GitHub Release、GitHub Pages 公网 URL 和 GitHub Actions pass 需要用户另行授权 push/dispatch 后取得。仓库保留 `GitHub Actions` 兼容项目清单里的 `offline-check` 项，但当前交付按用户决定只使用 GitHub，不再等待 GitHub remote 或 pipeline pass。
-- Release notes are maintained in CHANGELOG.md.
+- Windows 桌面 `.exe` 与 CLI `.zip` 需要在 Windows runner 上构建和 smoke。
+- Release、Pages 和平台包由 GitHub Actions 生成；本地 checkout 默认不包含 `dist/` 产物。
 
 ## 第三方依赖与许可证
 

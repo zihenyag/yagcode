@@ -38,7 +38,7 @@ def validation_result_payload() -> dict[str, Any]:
         "status": "PASS",
         "category": "test",
         "reason_code": "all-passed",
-        "command_template_id": "offline-check",
+        "command_template_id": "unit-test",
         "exit_code": None,
         "summary": "All required tests passed.",
         "evidence_refs": [],

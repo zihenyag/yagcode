@@ -79,7 +79,7 @@ function createUnavailableClient(): SidecarClient {
       diff_files: [],
       validations: [{ id: "sidecar", title: "sidecar 连接", detail: "等待 Electron Main 注入", status: "pending" }],
       risks: ["当前 renderer 只能展示状态，不能执行本地动作"],
-      uncovered: ["真实桌面生命周期由 覆盖"],
+      uncovered: ["真实桌面生命周期由 Electron main/preload 覆盖"],
       approval_actions: [],
     },
     settings: {

@@ -202,7 +202,7 @@ def valid_actions() -> dict[str, JsonObject]:
             "timeout_ms": 1000,
         },
         "run_validation": {
-            "validator_id": "offline-check",
+            "validator_id": "unit-test",
             "target_paths": ["src/yagcode"],
         },
         "request_review": {

@@ -237,7 +237,7 @@ function baseSnapshot(scene: ScreenshotSceneId): WorkbenchApiSnapshot {
         { id: "green", title: "GREEN", detail: activeDiff ? "聚焦测试通过" : "等待候选修改", status: activeDiff ? "passed" : "pending", command: "pytest tests/test_example.py" },
       ],
       risks: ["截图 fixture 不执行真实文件操作"],
-      uncovered: ["发布安装包 smoke 由 覆盖"],
+      uncovered: ["发布安装包 smoke 由 release packaging 覆盖"],
       approval_actions: workbenchReady
         ? [
             { id: "accept_review", label: "接受当前候选", enabled: activeDiff, high_risk: false },

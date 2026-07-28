@@ -776,7 +776,7 @@ def _snapshot_for_preview(services: Services) -> WorkbenchSnapshotView:
             risks=(
                 "Changes 只读取真实 Git diff；未跟踪文件暂不读取内容，避免首次隐私预览前泄露。",
             ),
-            uncovered=("Release 打包、GitHub Pages 落地页和Release evidence不属于当前桌面联调范围。",),
+            uncovered=("Release 打包和 GitHub Pages 落地页不属于当前桌面联调范围。",),
             approval_actions=()
             if step != "WORKBENCH"
             else (

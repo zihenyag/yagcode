@@ -7,7 +7,7 @@
       "version": "2.50.1",
       "source_url": "https://github.com/git-for-windows/git/releases/download/v2.50.1.windows.1/MinGit-2.50.1-64-bit.zip",
       "sha256": "4b601fd3f4fbe1c5f43be20b65ac89f6b341f932414981a4eacd59d70a2264cf",
-      "signature": "Git for Windows release artifact; final installer signature evidence belongs to runtime/runtime",
+      "signature": "Git for Windows release artifact; verify the installer signature before updating this manifest",
       "installer_kind": "mingit_zip",
       "requires_admin": true,
       "test_owned_bytes_b64": "dHJ1c3RlZCBtaW5naXQgMi41MC4xIHdpbjMyIHg2NAo="
@@ -18,7 +18,7 @@
       "version": "2.50.1",
       "source_url": "https://git-scm.com/download/mac",
       "sha256": "4b601fd3f4fbe1c5f43be20b65ac89f6b341f932414981a4eacd59d70a2264cf",
-      "signature": "Git upstream download page; final installer signature evidence belongs to runtime/runtime",
+      "signature": "Git upstream download page; verify the installer signature before updating this manifest",
       "installer_kind": "system_or_xcode_prompt",
       "requires_admin": false,
       "test_owned_bytes_b64": "dHJ1c3RlZCBtaW5naXQgMi41MC4xIHdpbjMyIHg2NAo="

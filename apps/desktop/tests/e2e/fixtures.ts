@@ -340,7 +340,7 @@ function fixtureSnapshot(state: FixtureState) {
         { id: "diff", title: "真实 Git Diff 预览", detail: state.diffActive ? "fixture diff ready" : "等待候选修改", status: state.diffActive ? "passed" : "pending", command: "git diff --no-ext-diff --unified=3 HEAD --" },
       ],
       risks: ["fixture sidecar 不执行真实文件操作"],
-      uncovered: ["生产 sidecar 打包由 覆盖"],
+      uncovered: ["生产 sidecar 打包由 release packaging 覆盖"],
       approval_actions:
         step === "WORKBENCH"
           ? [
