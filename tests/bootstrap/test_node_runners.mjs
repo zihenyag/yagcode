@@ -9,6 +9,7 @@ const COMMANDS = [
   'check:landing',
   'scan:framework-boundary',
   'scan:secrets',
+  'test:packaging-runners',
 ];
 
 function pythonPath(cwd, platform) {

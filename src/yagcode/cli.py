@@ -4,16 +4,23 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import sys
 
 from pathlib import Path
+from typing import TextIO
 
 from yagcode.cli_demo import run_cli_demo
+from yagcode.tui import health_payload, run_tui
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="yagcode")
     subparsers = parser.add_subparsers(dest="command")
+    subparsers.add_parser("health", help="print local CLI health as JSON")
+    subparsers.add_parser("version", help="print the CLI version")
+    tui = subparsers.add_parser("tui", help="start the terminal workbench")
+    tui.add_argument("--script", help="read commands from a file instead of stdin")
     demo = subparsers.add_parser("demo", help="run a local end-to-end CLI demo")
     demo.add_argument("--workspace", required=True, help="directory used for generated demo projects")
     demo.add_argument("--provider", default="scripted", help="provider id; scripted is deterministic")
@@ -23,12 +30,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    *,
+    input_stream: TextIO | None = None,
+    output_stream: TextIO | None = None,
+    cwd: Path | None = None,
+) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    input_stream = input_stream or sys.stdin
+    output_stream = output_stream or sys.stdout
     if args.command is None:
-        parser.print_help()
+        return run_tui(cwd=cwd or Path.cwd(), input_stream=input_stream, output_stream=output_stream)
+    if args.command == "health":
+        print(json.dumps(health_payload(cwd=cwd or Path.cwd()), sort_keys=True), file=output_stream)
         return 0
+    if args.command == "version":
+        from yagcode import __version__
+
+        print(__version__, file=output_stream)
+        return 0
+    if args.command == "tui":
+        if args.script:
+            with Path(args.script).open("r", encoding="utf-8") as script:
+                return run_tui(cwd=cwd or Path.cwd(), input_stream=script, output_stream=output_stream)
+        return run_tui(cwd=cwd or Path.cwd(), input_stream=input_stream, output_stream=output_stream)
     if args.command == "demo":
         api_key = getpass.getpass("Provider API key: ") if args.real_provider else None
         report = run_cli_demo(

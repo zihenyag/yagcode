@@ -18,6 +18,19 @@
     "check:landing": "node scripts/run-python.mjs scripts/check_landing_page.py",
     "scan:framework-boundary": "node scripts/run-python.mjs scripts/scan_framework_boundary.py",
     "scan:secrets": "node scripts/run-python.mjs scripts/scan_secrets.py --root .",
-    "demo": "node scripts/run-python.mjs -m yagcode.demo"
+    "demo": "node scripts/run-python.mjs -m yagcode.demo",
+    "check:version": "node scripts/check-version.mjs",
+    "package:mac": "node scripts/build-desktop.mjs --platform mac --arch arm64",
+    "package:win": "node scripts/build-desktop.mjs --platform win --arch x64",
+    "package:cli:mac": "node scripts/build-cli.mjs --platform mac --arch arm64",
+    "package:cli:win": "node scripts/build-cli.mjs --platform win --arch x64",
+    "manifest:verify:mac": "node scripts/hash-artifacts.mjs verify-platform --manifest dist/manifests/darwin-arm64.json --asset dist/release/yagcode-mac-arm64.dmg",
+    "manifest:verify:win": "node scripts/hash-artifacts.mjs verify-platform --manifest dist/manifests/win32-x64.json --asset dist/release/yagcode-win-x64.exe",
+    "manifest:verify:cli:mac": "node scripts/hash-artifacts.mjs verify-platform --manifest dist/manifests/cli-darwin-arm64.json --asset dist/release/yagcode-cli-mac-arm64.tar.gz",
+    "manifest:verify:cli:win": "node scripts/hash-artifacts.mjs verify-platform --manifest dist/manifests/cli-win32-x64.json --asset dist/release/yagcode-cli-win-x64.zip",
+    "manifest:merge": "node scripts/hash-artifacts.mjs merge --manifest dist/manifests/darwin-arm64.json --manifest dist/manifests/win32-x64.json --manifest dist/manifests/cli-darwin-arm64.json --manifest dist/manifests/cli-win32-x64.json --asset-dir dist/release --output dist/release/release-manifest.json",
+    "smoke:installed": "node scripts/smoke-installed-app.mjs",
+    "smoke:cli": "node scripts/smoke-cli.mjs",
+    "test:packaging-runners": "node --test tests/integration/packaging/test_builder_contract.mjs tests/integration/packaging/test_version_contract.mjs tests/integration/packaging/test_runtime_inventory.mjs"
   }
 }

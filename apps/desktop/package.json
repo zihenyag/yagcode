@@ -5,16 +5,16 @@
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
-    "build": "vite build && npm run build:main",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build": "node ../../node_modules/vite/bin/vite.js build && npm run build:main",
+    "build:main": "node ../../node_modules/typescript/bin/tsc -p tsconfig.main.json",
     "dev:renderer": "node scripts/dev-renderer.mjs",
     "dev:desktop": "node scripts/dev-desktop.mjs",
     "dev:screenshots": "node scripts/dev-screenshots.mjs",
-    "test": "vitest run src/renderer",
-    "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",
-    "lint": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",
-    "start:electron": "electron dist/main/main.js"
+    "test": "node ../../node_modules/vitest/vitest.mjs run src/renderer",
+    "test:e2e": "node ../../node_modules/@playwright/test/cli.js test",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc --noEmit && node ../../node_modules/typescript/bin/tsc -p tsconfig.main.json --noEmit",
+    "lint": "node ../../node_modules/typescript/bin/tsc --noEmit && node ../../node_modules/typescript/bin/tsc -p tsconfig.main.json --noEmit",
+    "start:electron": "node ../../node_modules/electron/cli.js dist/main/main.js"
   },
   "dependencies": {
     "@yagcode/contracts": "0.1.0",
@@ -32,9 +32,11 @@
     "@types/react-dom": "19.1.6",
     "axe-core": "4.10.3",
     "electron": "37.2.0",
+    "electron-builder": "26.0.12",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
     "vite": "7.0.4",
-    "vitest": "3.2.4"
+    "vitest": "3.2.4",
+    "yaml": "2.9.0"
   }
 }

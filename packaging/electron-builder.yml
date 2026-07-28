@@ -1,0 +1,43 @@
+appId: io.github.yagcode.desktop
+productName: yagcode
+forceCodeSigning: false
+publish: null
+generateUpdatesFilesForAllChannels: false
+directories:
+  app: apps/desktop
+  output: dist/release
+artifactName: "yagcode-${os}-${arch}.${ext}"
+files:
+  - "dist/main/**/*"
+  - "dist/renderer/**/*"
+  - "package.json"
+extraResources:
+  - from: dist/sidecar
+    to: sidecar
+  - from: packaging/shipped-runtime.json
+    to: shipped-runtime.json
+  - from: LICENSES.md
+    to: LICENSES.md
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+mac:
+  identity: null
+  minimumSystemVersion: "13.0"
+  target:
+    - target: dmg
+      arch:
+        - arm64
+dmg:
+  writeUpdateInfo: false
+win:
+  signAndEditExecutable: false
+  signtoolOptions: null
+  azureSignOptions: null
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  differentialPackage: false
+  oneClick: false
+  perMachine: false

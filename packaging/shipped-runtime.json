@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "products": {
+    "cli": [
+      {
+        "name": "YagCode CLI",
+        "version": "0.1.0",
+        "source": "src/yagcode",
+        "license": "MIT",
+        "notice_anchor": "yagcode-cli"
+      },
+      {
+        "name": "CPython runtime via PyInstaller",
+        "version": "3.12",
+        "source": "https://www.python.org/",
+        "license": "Python-2.0",
+        "notice_anchor": "cpython"
+      }
+    ],
+    "desktop": [
+      {
+        "name": "YagCode Desktop",
+        "version": "0.1.0",
+        "source": "apps/desktop",
+        "license": "MIT",
+        "notice_anchor": "yagcode-desktop"
+      },
+      {
+        "name": "Electron",
+        "version": "37.2.0",
+        "source": "https://www.electronjs.org/",
+        "license": "MIT",
+        "notice_anchor": "electron"
+      },
+      {
+        "name": "React",
+        "version": "19.1.0",
+        "source": "https://react.dev/",
+        "license": "MIT",
+        "notice_anchor": "react"
+      },
+      {
+        "name": "CPython runtime via PyInstaller",
+        "version": "3.12",
+        "source": "https://www.python.org/",
+        "license": "Python-2.0",
+        "notice_anchor": "cpython"
+      }
+    ]
+  }
+}
