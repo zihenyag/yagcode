@@ -9,7 +9,7 @@ import { cliBuildPlan } from '../../../scripts/build-cli.mjs';
 import { desktopBuildPlan, rejectUpdaterMetadata, sanitizedEnv } from '../../../scripts/build-desktop.mjs';
 import { sidecarBuildPlan } from '../../../scripts/build-sidecar.mjs';
 import { createPlatformManifest, canonicalJson, verifyPlatformManifest, writeManifest } from '../../../scripts/hash-artifacts.mjs';
-import { smokeInstalledApp } from '../../../scripts/smoke-installed-app.mjs';
+import { parseOptions, smokeInstalledApp } from '../../../scripts/smoke-installed-app.mjs';
 
 test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   const root = '/repo';
@@ -63,6 +63,23 @@ test('electron builder config disables dmg update metadata', () => {
 test('installed smoke rejects missing roots before launch evidence', () => {
   assert.throws(() => smokeInstalledApp({ platform: 'linux-x64', root: '/definitely/missing/yagcode' }), /INSTALLED_APP_ROOT_REQUIRED/);
   assert.throws(() => smokeInstalledApp({ platform: 'darwin-arm64' }), /DARWIN_SMOKE_ARGS_REQUIRED/);
+});
+
+test('installed smoke accepts keyed and npm-stripped windows arguments', () => {
+  assert.deepEqual(parseOptions(['--platform', 'win32-x64', '--root', 'dist/installed/win32-x64/yagcode']), {
+    platform: 'win32-x64',
+    root: 'dist/installed/win32-x64/yagcode',
+  });
+  assert.deepEqual(parseOptions(['win32-x64', 'dist/installed/win32-x64/yagcode']), {
+    platform: 'win32-x64',
+    root: 'dist/installed/win32-x64/yagcode',
+  });
+  assert.deepEqual(parseOptions(['darwin-arm64', 'dist/manifests/darwin-arm64.json', 'dist/release/yagcode-mac-arm64.dmg']), {
+    platform: 'darwin-arm64',
+    manifest: 'dist/manifests/darwin-arm64.json',
+    asset: 'dist/release/yagcode-mac-arm64.dmg',
+  });
+  assert.throws(() => parseOptions(['win32-x64']), /ARGS_INVALID/);
 });
 
 test('manifest creation hashes real asset bytes and detects tampering', () => {

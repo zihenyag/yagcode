@@ -59,7 +59,12 @@ export function runCli(argv = process.argv.slice(2)) {
   }
 }
 
-function parseOptions(argv) {
+export function parseOptions(argv) {
+  if (argv[0] && !argv[0].startsWith('--')) {
+    if (argv[0] === 'win32-x64' && argv.length === 2) return { platform: argv[0], root: argv[1] };
+    if (argv[0] === 'darwin-arm64' && argv.length === 3) return { platform: argv[0], manifest: argv[1], asset: argv[2] };
+    throw new Error('ARGS_INVALID');
+  }
   const result = {};
   for (let index = 0; index < argv.length; index += 2) {
     if (!argv[index]?.startsWith('--') || argv[index + 1] === undefined) throw new Error('ARGS_INVALID');
