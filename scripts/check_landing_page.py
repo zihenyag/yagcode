@@ -25,8 +25,9 @@ REQUIRED_TEXT = (
     "受约束、可回档、可审计的本地 Coding Agent",
     "网页只是产品落地页，不是在线 Agent",
     "不会读取仓库、接收密钥、连接 Provider、连接 sidecar、上传文件、运行 shell",
-    "Bilibili 播放器是第三方内容",
     "GitHub Pages 仅展示产品与下载入口",
+    "机制演示",
+    "npm run demo",
 )
 
 FORBIDDEN_PATTERNS = (
@@ -50,10 +51,10 @@ FORBIDDEN_PATTERNS = (
 
 REQUIRED_CSP = (
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'none'",
     "style-src 'self'",
     "img-src 'self'",
-    "frame-src https://player.bilibili.com",
+    "frame-src 'none'",
     "connect-src 'none'",
     "object-src 'none'",
     "form-action 'none'",
@@ -69,9 +70,6 @@ class LandingParser(HTMLParser):
         self.iframes = 0
         self.scripts: list[str] = []
         self.stylesheets: list[str] = []
-        self.buttons: list[str] = []
-        self._button_depth = 0
-        self._button_text: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr = {key: value or "" for key, value in attrs}
@@ -85,25 +83,10 @@ class LandingParser(HTMLParser):
             self.scripts.append(attr.get("src", ""))
         if tag == "link" and attr.get("rel") == "stylesheet":
             self.stylesheets.append(attr.get("href", ""))
-        if tag == "button":
-            self._button_depth += 1
-            self._button_text = []
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "button" and self._button_depth:
-            self.buttons.append("".join(self._button_text).strip())
-            self._button_depth = 0
-            self._button_text = []
-
-    def handle_data(self, data: str) -> None:
-        if self._button_depth:
-            self._button_text.append(data)
-
 
 def main() -> int:
     problems: list[str] = []
     html = _read(INDEX, problems)
-    js = _read(LANDING_JS, problems)
     css = _read(LANDING_CSS, problems)
     if problems:
         return _finish(problems)
@@ -118,13 +101,11 @@ def main() -> int:
         if directive not in parser.csp:
             problems.append(f"missing CSP directive: {directive}")
     if parser.iframes != 0:
-        problems.append("index.html must not contain an iframe before consent")
-    if parser.scripts != ["docs/landing/landing.js"]:
+        problems.append("index.html must not contain an iframe")
+    if parser.scripts != []:
         problems.append(f"unexpected script sources: {parser.scripts!r}")
     if parser.stylesheets != ["docs/landing/landing.css"]:
         problems.append(f"unexpected stylesheet sources: {parser.stylesheets!r}")
-    if "同意并加载 Bilibili 视频" not in parser.buttons:
-        problems.append("missing Bilibili consent button")
 
     expected_images = {path.relative_to(ROOT).as_posix() for path in SCREENSHOTS}
     actual_images = {src for src, _alt in parser.images}
@@ -138,12 +119,14 @@ def main() -> int:
         if not screenshot.is_file():
             problems.append(f"missing screenshot asset: {screenshot.relative_to(ROOT)}")
 
-    combined = "\n".join((html, js))
+    combined = html
     for pattern in FORBIDDEN_PATTERNS:
         if re.search(pattern, combined, flags=re.IGNORECASE):
             problems.append(f"forbidden executable/static page pattern: {pattern}")
-    if "BILIBILI_EMBED_URL = \"\"" not in js:
-        problems.append("landing.js must keep Bilibili URL empty until a real public embed URL is provided")
+    if "第三方视频" in combined:
+        problems.append("landing page must not require a video URL")
+    if LANDING_JS.exists():
+        problems.append("landing.js should not exist when the root page has no runtime script")
     if len(css) < 2000:
         problems.append("landing.css unexpectedly small")
     return _finish(problems)

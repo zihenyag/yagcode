@@ -120,6 +120,8 @@ def _scan_worktree(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     for relative_path in _candidate_files(root):
         path = root / relative_path
+        if not path.exists():
+            continue
         if _should_skip(relative_path, path):
             continue
         findings.extend(_scan_file(relative_path, path, scope="worktree"))

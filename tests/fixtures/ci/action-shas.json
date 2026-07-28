@@ -1,0 +1,50 @@
+{
+  "actions/checkout": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/checkout",
+    "sha": "11d5960a326750d5838078e36cf38b85af677262",
+    "tag": "v4"
+  },
+  "actions/configure-pages": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/configure-pages",
+    "sha": "983d7736d9b0ae728b81ab479565c72886d7745b",
+    "tag": "v5"
+  },
+  "actions/deploy-pages": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/deploy-pages",
+    "sha": "d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
+    "tag": "v4"
+  },
+  "actions/download-artifact": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/download-artifact",
+    "sha": "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    "tag": "v4"
+  },
+  "actions/setup-node": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/setup-node",
+    "sha": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    "tag": "v4"
+  },
+  "actions/setup-python": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/setup-python",
+    "sha": "a26af69be951a213d495a4c3e4e4022e16d87065",
+    "tag": "v5"
+  },
+  "actions/upload-artifact": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/upload-artifact",
+    "sha": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "tag": "v4"
+  },
+  "actions/upload-pages-artifact": {
+    "license": "MIT",
+    "repository": "https://github.com/actions/upload-pages-artifact",
+    "sha": "56afc609e74202658d3ffba0e8f6dda462b719fa",
+    "tag": "v3"
+  }
+}

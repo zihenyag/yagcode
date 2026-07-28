@@ -10,6 +10,7 @@ export const TEST_COMMANDS = Object.freeze([
   'scan:framework-boundary',
   'scan:secrets',
   'test:packaging-runners',
+  'test:delivery-runners',
 ]);
 
 function supportsNode22(version) {

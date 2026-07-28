@@ -1,104 +1,124 @@
-# yagcode
+# YagCode
 
-YagCode 期末项目：Coding Agent Harness。
+YagCode is a local Coding Agent Harness for scoped, reviewable code changes.
 
+## 项目简介
 
-- [Brainstorming 过程与用户决策](design notes)
-- [初始化候选规划（历史材料）](PROJECT_PLANNING.md)
-- [项目与项目要求](YagCode_product brief_A_Coding_Agent_Harness.md)
-- [Agent 协作记录](agent log)
+YagCode 面向个人开发者和需要审查本地 AI 改动的维护者：用户把一个代码问题交给本地 Agent，Harness 负责组织上下文、调用单次 LLM Provider、解析结构化 action、执行受控工具、回灌测试反馈，并在最终接受前展示 diff、验证证据和回滚点。
 
-当前只允许用不同类型的陌生 Agent 仅凭 `product spec` 与 `runtime plan` 完成 Gate 5 冷启动复验，并把问题回灌到文档。在 Gate 5 通过前不保留 Harness 业务实现。
+核心实现由本仓库代码完成：agent loop、action parser、tool dispatcher、memory、feedback、governance、credential flow 和 stop condition 都可在 mock/stub LLM 下离线测试。
 
-## 已确认的运行形态
+## 安装
 
-- 本地 Harness sidecar 采用 Python 3.12、FastAPI、SQLite 和系统 keyring，Agent 内核自行实现。
-- 真实产品采用 Electron 桌面壳；Node.js/TypeScript main process 负责窗口、目录选择、通知、关闭拦截、sidecar 生命周期和安装包，不承载 Agent loop。
-- React + TypeScript + Vite renderer 负责 UI，并启用 `contextIsolation`、sandbox、严格 CSP、禁用 `nodeIntegration`；preload 只暴露最小 typed IPC。
-- Python Harness 打包为平台 sidecar，由 Electron 启动并监控；FastAPI 在随机 loopback 端口提供带随机握手令牌的 HTTP/SSE API。
-- CLI 是独立产品入口：用户运行 `yagcode` 默认进入专属终端 TUI，像本地 Coding Agent 工作台一样提供对话、Plan、模型、diff、审批、记忆和审计；诊断子命令只作为辅助路径。
-- macOS 与 Windows 复用 Electron、React 和 Python 源码；GitHub Release 是唯一产品分发渠道，但桌面端和 CLI 端分开打包。桌面端每个平台只要求用户下载一个安装产物：macOS 13+ Apple Silicon `.dmg` 或 Windows 10/11 x64 NSIS `.exe`；CLI 端提供独立 asset，安装或解包后暴露 `yagcode` 命令，不要求先安装桌面 App。这里的“单文件”指 Release 下载物/安装物，安装后的 App 或 CLI 目录可以包含多个文件；不支持 macOS Intel，也不构建 universal binary。
-- 老师已明确项目所称 WebUI 就是 GitHub Pages 产品落地页；页面只提供产品介绍、截图、Bilibili 讲解和 Release/README/源码链接，不要求也不提供在线 demo、浏览器 Agent、任务输入、用户文件/key 或 shell。该方案已合规，但尚未实现或部署。
-- 默认验证策略可由用户覆盖，标准级要求复现原问题、目标与相关测试通过、静态检查通过且 diff 合规。
-- 目标仓库按语言无关方式处理；测试、lint、类型检查和构建命令由项目配置声明并进入 allowlist。
+开发环境：
 
-## 已确认的模型支持
+```bash
+npm ci
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+```
 
-- OpenAI 为默认主要 Provider，另行官方支持 Qwen、GLM 和 DeepSeek；不支持 Anthropic。
-- Harness 每轮只向 Provider 请求一个结构化候选 action，工具执行、反馈、记忆和停机均由本项目代码控制。
-- 用户可在同一个 bug 中切换 Provider 或模型，但必须先手动中断运行、保存 checkpoint，再切换并显式恢复；运行中模型选择器禁用。
-- scripted/mock Provider 只用于离线确定性测试与仓库内机制演示，并通过 Bilibili 视频讲解；公网不运行 Harness 或 scenario interpreter。
+本地 CLI 可通过 editable install 暴露：
 
-## 已确认的权限与隐私模型
+```bash
+yagcode
+yagcode health
+yagcode version
+```
 
-- 危险操作提供“仅允许本次操作”“始终允许符合此规则的操作”“为当前应用会话启用完全访问模式”三个选择；规则匹配由确定性策略引擎完成。
-- 完全访问模式持续到本地应用或服务退出、崩溃或重启，用户可随时提前撤销；它不关闭审计、凭据隔离或数据外发治理。
-- 工作区外访问可按外部根目录授予只读或读写权限。Agent 只能使用命名凭据，不能读取、显示或记录明文。
-- 隐私数据首次外发前必须预览；确认后形成跨会话、跨 Provider 的持久授权，直到用户撤销或数据范围、隐私类别发生实质变化。
-- API key、密码、Token 与私钥永不发送给模型，不能被普通审批或完全访问模式放行。
-- 隐私预览、原始对话和工具输出默认永久保存；原始记录可改为保留 30 天、60 天、90 天、180 天、1 年或 2 年，并支持用户主动删除。
-- 删除正文后仍永久保留不含 prompt、文件内容、工具输出和凭据的脱敏结构化审计，以维持变更与审批的可追溯性。
-- 标准权限自动执行工作区读取、隔离区计划内源码修改和 allowlist 命令；结构性或受保护修改在计划外或 Plan 关闭时审批，完全访问下自动执行但最终标红。
-- 完全访问也不能绕过隔离 worktree、人工接受、凭据隔离、首次隐私预览、审计完整性和显式远程发布意图。
+桌面端开发联调：
 
-## 已确认的任务交互
+```bash
+npm run dev:desktop --workspace apps/desktop
+```
 
-- bug 默认通过自然语言对话创建，支持日志、截图和工作区文件；结构化任务表单可选展开，并与对话共享同一份任务状态。
-- 对话输入框提供 Agent 级“规划模式”开关，默认开启；开启时先只读分析并等待计划确认，关闭时建立 checkpoint 后直接执行。
-- 关闭规划模式只跳过写入前的计划签字，不会授予完全访问，也不会绕过危险操作、隐私、凭据或最终 bug 审阅规则。
+## 运行
 
-## 已确认的记忆模型
+CLI 默认进入终端工作台：
 
-- 线程状态只服务当前 bug；项目记忆自动形成并只在当前项目复用，用户可随时增加、编辑、固定或删除。
-- 运行中新记忆先标为暂定，只供当前运行使用；bug 接受并通过集成验证后转为正式，拒绝后删除正文。
-- 跨项目记忆必须由用户确认提升；建议卡片是非阻塞收件箱，不暂停模型、命令或 action loop。
-- MVP 使用本地结构化字段、标签和 SQLite FTS 按需检索，不调用外部 embedding 服务，也不把全部历史对话注入模型。
+```bash
+yagcode
+```
 
-## 已确认的 Agent 与运行模型
+常用本地验证：
 
-- 应用允许用户创建多个无需认证的本地档案；每个档案拥有一个 Agent 配置、多个项目和多个 bug 线程，并按档案 UUID 逻辑隔离项目、线程、设置、凭据、隐私授权与记忆。
-- Plan、权限、Provider 配置、模型列表和数据策略属于本地档案下的 Agent，跨该档案的项目与线程共享；当前选中的 Provider/模型属于线程，项目只提供工作区、命令、验证和路径事实。
-- 同一项目一次只允许一个线程运行，不同且可写范围不重叠的项目可以并行；规范化仓库身份阻止同一仓库通过路径别名绕过锁。
-- 运行期间可切换项目页面并操作其他无冲突项目，但不能删除或卸载正在运行的项目；档案存在任一运行线程时禁止切换档案或正常关闭，必须分别手动停止。
-- 运行中可追加文字、日志、截图和文件；新信息在安全 action 边界进入当前运行，旧的在途模型结果会被取消或丢弃。
-- 安全命令和项目 allowlist 可自动执行，其他命令进入统一审批；完全访问模式下允许任意 shell，但不解除隐私、凭据与审计约束。
-- 本地档案不防止同一操作系统账号下的其他人查看，操作系统用户才是安全边界；删除档案经一次破坏性确认后清除正文、配置、凭据、checkpoint 与审计。
-- 每个 bug 具有可覆盖的运行预算；标准值为 30 次模型决策、60 分钟实际运行、20 个文件、1500 行增删和相同错误连续 3 次，达到上限只暂停并等待用户。
-- Token 与可靠费用实时显示，金额硬上限默认关闭；Agent 不会因失败自动切换模型，也不能以自然语言完成声明绕过验证。
-- 下一请求预计达到模型上下文 70% 时，主循环在 action 边界进入阻塞式压缩；压缩校验通过并合并排队消息后才继续。
-- 压缩只替换发送给模型的活动视图，不删除本地原始证据；连续失败 3 次后暂停，由用户选择重试、切换模型或停止。
-- Provider 连接中断、`429`、可重试 `5xx` 和超时统一最多自动尝试 5 次；代码声明为幂等的只读工具最多 3 次，均显示退避和尝试记录。
-- 写入、commit、push、安装、发布和部署不自动重试；结果不明时先只读对账，再由用户决定是否重试。
+```bash
+npm run test:all
+npm run demo
+npm run scan:secrets -- --scope worktree --scope history
+```
 
-## 已确认的项目接入
+桌面端使用 Electron main 启动本地 Python sidecar。真实 Provider key 通过产品凭据流程写入系统 keyring；测试和机制演示使用 scripted/mock Provider，不需要真实 key。
 
-- 应用安装或首次启动时检测 Git；缺失时从内置受信安装清单选择对应平台与架构的来源，展示版本、来源、大小和权限要求，并在校验哈希或代码签名后安装。
-- 已有 Git 仓库直接以实际 worktree 根目录接入；普通目录经用户确认后执行 `git init`，不会自动创建用户 commit 或暂存文件。
-- 安装 Git 与初始化目录必须分别确认：前者发生在应用环境预检，后者发生在以后添加普通目录时；取消初始化不会撤销已经完成的 Git 安装。
-- 初始化后建立不修改用户分支历史和 index 的内部基线，并将目录中既有未跟踪文件纳入 diff 与回档。
+## 分发
 
-## 已确认的隔离修改流程
+计划发布渠道是 GitHub Release。桌面端和 CLI 端分开打包：
 
-- 允许在 dirty working tree 上运行；bug 开始时保存 `HEAD`、index、staged/unstaged 改动、未跟踪非 ignore 文件与哈希，用户原有改动不会被自动提交、stash、reset 或清理。
-- 每个 bug 在专属隔离 worktree 或等价执行副本中修改和测试，真实工作区在用户接受前保持不变；隔离创建失败时不退化为原地修改。
-- 接受时比较开始基线、Agent 结果与真实工作区当前状态；外部编辑触发三方冲突检查，绝不静默覆盖。
-- 合并以真实工作区集成 checkpoint 保护，并在合并后重新验证；只有集成与验证成功才提升为新基线。
+- macOS 13+ Apple Silicon 桌面端：`yagcode-mac-arm64.dmg`
+- Windows 10/11 x64 桌面端：`yagcode-win-x64.exe`
+- macOS CLI：`yagcode-cli-mac-arm64.tar.gz`
+- Windows CLI：`yagcode-cli-win-x64.zip`
 
-## 已确认的 Git 完成动作
+“单文件”指用户在 Release 页面下载的安装包或压缩包。安装后的 Electron App、Python sidecar 或 CLI 解包目录可以包含多个 runtime 文件。
 
-- bug 审阅提供“接受更改”“接受并提交”“继续修改”“拒绝并丢弃”；默认只应用修改，不自动创建 commit。
-- “接受并提交”由用户显式选择，message 可编辑并验证 Conventional Commits；Agent 增量无法与既有 dirty 内容可靠分离时禁用自动提交。
-- 产品支持用户明确要求的 `git push`，执行前展示 remote、目标分支和 commit 列表；修复、接受或 commit 均不会自动触发 push。
-- 完全访问可以免除普通 push 的逐次审批，但不能替代明确的用户 push 指令；force push、删除远程 ref、标签和非 fast-forward 更新使用独立高风险授权。
-- 当前项目仓库仍严格禁止 push、远程发布、部署和创建远程 PR。
-- 接受修改默认作用于当前分支，不自动创建分支；用户可显式选择“创建新分支并应用”，名称可编辑，dirty 内容无法安全分离时禁用该选项。
-- MVP 不内置 GitHub PR 或 GitHub MR 创建与同步；外部 `gh`、`glab` 等工具只作为经过授权的普通 shell 命令使用。
+当前本地证据：macOS ARM64 桌面 DMG、macOS CLI asset、manifest verify 和 smoke 已通过，详见 `release workflows`。Windows 最新源码原生构建和 smoke 仍待 Windows runner 补齐。仓库当前没有签名、notarization、GitHub Release、Pages 公网 URL 或远程 CI pass 证据。
 
-## 已确认的验证与交付
+## 目录结构
 
-- 六个 Harness 维度均实现可运行基础，确定性治理作为做深的主要贡献；真实 LLM 移除后，路径、权限、隔离、审批、接受和回档仍可离线验证。
-- scripted/mock Provider 的机制演示必须展示危险动作被拦截、失败反馈改变下一 action，以及 dirty 工作区隔离与冲突拒绝接受。
-- Python 单元测试、临时 Git 仓库集成测试、Vitest、Playwright Electron、凭据 canary、secret scan 和干净安装测试组成发布门禁。
-- 故障注入覆盖非法 action、迟到响应、Provider/工具重试上限、副作用结果未知、checkpoint/压缩失败、路径穿越、并发冲突和崩溃恢复。
-- `GitHub Actions` 必须包含名称完全为 `offline-check` 的离线 job；GitHub Actions 负责公开仓库检查、Release 产物和静态 Pages 落地页的安全/链接/E2E 检查。
-- GitHub 是公开开发与 Release 主仓库，GitHub 是Release evidence；当前禁止任何 push、远程 PR、Release、Pages 和 Bilibili 发布，后续必须另行授权。
+```text
+apps/desktop/              Electron main/preload 和 React renderer
+docs/landing/              GitHub Pages 根落地页资源
+packages/contracts/        Python/TypeScript 共享 API contract
+packages/ui/               桌面 UI 原语和设计 token
+packaging/                 Electron/PyInstaller runtime inventory 与 builder 配置
+scripts/                   测试、打包、manifest、CI evidence 和 Pages 构建脚本
+src/yagcode/               Harness core、policy、tools、memory、providers、API、CLI
+tests/                     mock LLM 单元测试、集成测试、对抗测试和 delivery contract
+release workflows            发布检查和风险记录
+```
+
+## 安全边界
+
+YagCode 的安全边界是本机操作系统账号和用户明确授权的项目目录。Agent 默认不能越界读写、不能读取明文凭据、不能绕过危险命令审批、不能自动 push/release/deploy。
+
+主要机制：
+
+- 路径、shell、网络、隐私和发布动作由确定性 policy/capability code 拦截。
+- 真实 key 存在 OS keyring；状态查询只返回存在与否、Provider 和更新时间，不回显明文。
+- 工作区修改在隔离 worktree 或等价副本中完成；用户接受前不覆盖真实工作区。
+- `scan:secrets` 覆盖 worktree 和 Git history，输出只包含 detector 与位置，不打印匹配值。
+- GitHub Pages 是静态产品落地页，只展示产品、截图、机制演示命令和下载/源码链接；它不接收 key、文件或任务输入，也不连接 Provider、sidecar、shell 或在线 Agent runtime。
+
+## 目标机器凭据配置
+
+目标机器第一次使用真实 Provider 时，通过桌面端或 CLI 的隐藏输入录入 key。支持状态查看、更新和清除；查看状态不会显示 key。
+
+支持的 Provider 路径包括 OpenAI-compatible endpoint、Qwen、GLM、DeepSeek 和 NJU SE Hub。当前不支持 Anthropic。离线验证可完全使用 scripted/mock Provider，不需要真实网络 key。
+
+## 测试与机制演示
+
+完整本地门禁：
+
+```bash
+npm run test:all
+```
+
+确定性机制演示：
+
+```bash
+npm run demo
+```
+
+演示覆盖危险动作拦截、失败反馈改变下一步 action、隔离工作区与 checkpoint 回滚。相关证据见 `release workflows`。
+
+## 已知限制
+
+- macOS Intel、Linux 桌面安装包和 universal binary 不在本项目范围内。
+- 当前安装包未签名；macOS Gatekeeper 和 Windows SmartScreen 可能提示未知开发者。
+- Windows 最新源码的桌面 `.exe` 与 CLI `.zip` 还没有在本轮原生 runner 上完成验证。
+- 远程 GitHub Release、GitHub Pages 公网 URL、GitHub pipeline pass 和 GitHub Actions pass 需要用户另行授权 push/dispatch 后取得。
+- Release notes are maintained in CHANGELOG.md.
+
+## 第三方依赖与许可证
+
+第三方 runtime 与构建依赖记录在 `LICENSES.md`、`THIRD_PARTY_NOTICES.md` 和 `packaging/shipped-runtime.json`。核心 Harness 代码为本项目实现；第三方库只作为底层 HTTP、API、UI、打包、测试或系统集成组件使用。

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-src https://player.bilibili.com; connect-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"
+      content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self'; frame-src 'none'; connect-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"
     >
     <title>YagCode - 本地 Coding Agent 工作台</title>
     <meta
@@ -23,7 +23,7 @@
       <nav class="top-nav" aria-label="主要链接">
         <a href="#screenshots">截图</a>
         <a href="#security">安全边界</a>
-        <a href="#demo">讲解</a>
+        <a href="#demo">演示</a>
         <a href="https://github.com/zihenyag/yagcode#readme">README</a>
       </nav>
     </header>
@@ -157,20 +157,19 @@
 
       <section class="section split" id="demo" aria-labelledby="demo-title">
         <div>
-          <p class="eyebrow">Video</p>
-          <h2 id="demo-title">Bilibili 讲解</h2>
+          <p class="eyebrow">Demo</p>
+          <h2 id="demo-title">机制演示</h2>
         </div>
-        <div class="video-panel" data-video-panel>
+        <div class="boundary-panel">
           <p>
-            Bilibili 播放器是第三方内容。加载后，Bilibili 可能按其政策使用自身的 cookie 或 storage。
-            本页面不会向它传递仓库、密钥、父页存储、Provider 信息或产品 API 地址。
+            产品要求的机制演示保留为仓库中的可重复命令和测试证据。它在 mock Provider 下稳定展示：
+            危险动作被拦截、失败反馈改变下一步 action、隔离工作区可以回档。
           </p>
-          <button class="button button-primary" type="button" data-load-video>
-            同意并加载 Bilibili 视频
-          </button>
-          <p class="video-status" data-video-status aria-live="polite">
-            视频发布后将在此加载；当前本地页面不会创建第三方 iframe。
-          </p>
+          <ul class="boundary-list" aria-label="机制演示入口">
+            <li><code>npm run demo</code> 输出确定性 JSON 事件</li>
+            <li><code>npm run test:all</code> 覆盖 mock LLM 与安全门禁</li>
+            <li><code>release workflows</code> 保存 RED/GREEN 证据</li>
+          </ul>
         </div>
       </section>
 
@@ -195,7 +194,5 @@
       <span>YagCode</span>
       <span>本地 Harness 运行；GitHub Pages 仅展示产品与下载入口。</span>
     </footer>
-
-    <script src="docs/landing/landing.js"></script>
   </body>
 </html>

@@ -31,6 +31,8 @@
     "manifest:merge": "node scripts/hash-artifacts.mjs merge --manifest dist/manifests/darwin-arm64.json --manifest dist/manifests/win32-x64.json --manifest dist/manifests/cli-darwin-arm64.json --manifest dist/manifests/cli-win32-x64.json --asset-dir dist/release --output dist/release/release-manifest.json",
     "smoke:installed": "node scripts/smoke-installed-app.mjs",
     "smoke:cli": "node scripts/smoke-cli.mjs",
-    "test:packaging-runners": "node --test tests/integration/packaging/test_builder_contract.mjs tests/integration/packaging/test_version_contract.mjs tests/integration/packaging/test_runtime_inventory.mjs"
+    "build:pages": "node scripts/build-pages.mjs",
+    "test:packaging-runners": "node --test tests/integration/packaging/test_builder_contract.mjs tests/integration/packaging/test_version_contract.mjs tests/integration/packaging/test_runtime_inventory.mjs",
+    "test:delivery-runners": "node --test tests/bootstrap/test_ci_evidence_writer.mjs tests/bootstrap/test_release_ref.mjs"
   }
 }

@@ -10,6 +10,7 @@ const COMMANDS = [
   'scan:framework-boundary',
   'scan:secrets',
   'test:packaging-runners',
+  'test:delivery-runners',
 ];
 
 function pythonPath(cwd, platform) {
