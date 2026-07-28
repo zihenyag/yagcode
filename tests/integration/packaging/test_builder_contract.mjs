@@ -8,7 +8,7 @@ import { parse } from 'yaml';
 import { cliBuildPlan } from '../../../scripts/build-cli.mjs';
 import { desktopBuildPlan, rejectUpdaterMetadata, sanitizedEnv } from '../../../scripts/build-desktop.mjs';
 import { sidecarBuildPlan } from '../../../scripts/build-sidecar.mjs';
-import { createPlatformManifest, canonicalJson, verifyPlatformManifest, writeManifest } from '../../../scripts/hash-artifacts.mjs';
+import { createPlatformManifest, canonicalJson, mergeReleaseManifests, sha256File, verifyPlatformManifest, writeManifest } from '../../../scripts/hash-artifacts.mjs';
 import { parseOptions, smokeInstalledApp } from '../../../scripts/smoke-installed-app.mjs';
 
 test('builder plans keep CLI, sidecar, and desktop products separate', () => {
@@ -102,4 +102,35 @@ test('manifest creation hashes real asset bytes and detects tampering', () => {
   writeFileSync(asset, 'asset-v2', 'utf8');
   assert.throws(() => verifyPlatformManifest({ manifest: manifestPath, asset, root }), /MANIFEST_ASSET_MISMATCH/);
   assert.ok(canonicalJson(manifest).endsWith('\n'));
+});
+
+test('release manifest merge rehashes downloaded release assets', () => {
+  const root = join(tmpdir(), `yagcode-release-manifest-${Date.now()}`);
+  const assetDir = join(root, 'dist', 'release');
+  const manifestDir = join(root, 'dist', 'manifests');
+  mkdirSync(join(root, 'packaging'), { recursive: true });
+  mkdirSync(assetDir, { recursive: true });
+  writeFileSync(join(root, 'packaging', 'shipped-runtime.json'), '{"ok":true}\n', 'utf8');
+  writeFileSync(join(root, 'THIRD_PARTY_NOTICES.md'), 'notice\n', 'utf8');
+  const assets = [
+    ['desktop', 'darwin', 'arm64', 'yagcode-mac-arm64.dmg', 'darwin-arm64.json'],
+    ['desktop', 'win32', 'x64', 'yagcode-win-x64.exe', 'win32-x64.json'],
+    ['cli', 'darwin', 'arm64', 'yagcode-cli-mac-arm64.tar.gz', 'cli-darwin-arm64.json'],
+    ['cli', 'win32', 'x64', 'yagcode-cli-win-x64.zip', 'cli-win32-x64.json'],
+  ];
+  const manifests = [];
+  for (const [product, platform, arch, filename, manifestName] of assets) {
+    const asset = join(assetDir, filename);
+    const manifest = join(manifestDir, manifestName);
+    writeFileSync(asset, `${filename}:original`, 'utf8');
+    writeManifest({ output: manifest, manifest: createPlatformManifest({ product, platform, arch, asset, root }) });
+    manifests.push(manifest);
+  }
+  const windowsAsset = join(assetDir, 'yagcode-win-x64.exe');
+  writeFileSync(windowsAsset, 'yagcode-win-x64.exe:downloaded', 'utf8');
+  const output = join(root, 'dist', 'release', 'release-manifest.json');
+  const merged = mergeReleaseManifests({ manifests, assetDir, output, root });
+  const windows = merged.assets.find(asset => asset.filename === 'yagcode-win-x64.exe');
+  assert.equal(windows.sha256, sha256File(windowsAsset));
+  assert.notEqual(canonicalJson(merged), readFileSync(manifests[1], 'utf8'));
 });

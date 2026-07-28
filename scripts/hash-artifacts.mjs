@@ -76,7 +76,7 @@ export function writeManifest({ output, manifest }) {
   writeFileSync(output, canonicalJson(manifest), { encoding: 'utf8', flag: 'w' });
 }
 
-export function mergeReleaseManifests({ manifests, assetDir, output }) {
+export function mergeReleaseManifests({ manifests, assetDir, output, root = process.cwd() }) {
   const seen = new Set();
   const assets = [];
   let appVersion = null;
@@ -91,8 +91,15 @@ export function mergeReleaseManifests({ manifests, assetDir, output }) {
     const key = `${asset.product}:${asset.platform}:${asset.arch}`;
     if (seen.has(key)) throw new Error('MANIFEST_DUPLICATE_ASSET');
     seen.add(key);
-    verifyPlatformManifest({ manifest: manifestPath, asset: join(assetDir, asset.filename) });
-    assets.push(asset);
+    const actual = createPlatformManifest({
+      product: asset.product,
+      platform: asset.platform,
+      arch: asset.arch,
+      asset: join(assetDir, asset.filename),
+      root,
+    });
+    if (actual.app_version !== data.app_version) throw new Error('MANIFEST_VERSION_MISMATCH');
+    assets.push(actual.assets[0]);
   }
   const required = new Set(['desktop:darwin:arm64', 'desktop:win32:x64', 'cli:darwin:arm64', 'cli:win32:x64']);
   if (seen.size !== required.size || [...required].some(key => !seen.has(key))) {
