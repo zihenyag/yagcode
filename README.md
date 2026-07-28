@@ -1,12 +1,12 @@
 # YagCode
 
-YagCode is a local Coding Agent Harness for scoped, reviewable code changes.
+YagCode is a local coding agent workbench for scoped, reviewable code changes.
 
 ## 项目简介
 
-YagCode 面向需要让 AI 修改本地代码、又不想直接交出工作区控制权的开发者。用户把一个代码问题交给本地 Agent，Harness 负责组织上下文、调用单次 LLM Provider、解析结构化 action、执行受控工具、回灌测试反馈，并在最终接受前展示 diff、验证证据和回滚点。
+YagCode 面向需要让 AI 修改本地代码、同时保留审查权和回滚能力的开发者。用户把一个代码问题交给本地 Agent，YagCode 负责组织上下文、调用 LLM Provider、解析结构化 action、执行受控工具、回灌测试反馈，并在最终接受前展示 diff、验证证据和回滚点。
 
-核心实现由本仓库代码完成：agent loop、action parser、tool dispatcher、memory、feedback、governance、credential flow 和 stop condition 都可在 mock/stub LLM 下离线测试。
+这个仓库包含完整产品实现：agent loop、action parser、tool dispatcher、memory、feedback、governance、credential flow、桌面工作台和 CLI 入口都在本项目内实现，并且可以在 mock/stub LLM 下离线验证。
 
 ## 安装
 
@@ -18,7 +18,7 @@ python3.12 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
 ```
 
-本地 CLI 可通过 editable install 暴露：
+安装后可以直接进入 CLI 工作台，也可以查看健康状态和版本：
 
 ```bash
 yagcode
@@ -50,16 +50,16 @@ npm run scan:secrets -- --scope worktree --scope history
 
 桌面端使用 Electron main 启动本地 Python sidecar。真实 Provider key 通过产品凭据流程写入系统 keyring；测试和机制演示使用 scripted/mock Provider，不需要真实 key。
 
-## 分发
+## 获取项目
 
-计划发布渠道是 GitHub Release。桌面端和 CLI 端分开打包：
+项目源码、说明、版本历史和发布产物都在 GitHub：
 
-- macOS 13+ Apple Silicon 桌面端：`yagcode-mac-arm64.dmg`
-- Windows 10/11 x64 桌面端：`yagcode-win-x64.exe`
-- macOS CLI：`yagcode-cli-mac-arm64.tar.gz`
-- Windows CLI：`yagcode-cli-win-x64.zip`
+- GitHub: https://github.com/zihenyag/yagcode
+- README: https://github.com/zihenyag/yagcode#readme
+- Releases: https://github.com/zihenyag/yagcode/releases
+- Pages: https://zihenyag.github.io/yagcode/
 
-“单文件”指用户在 Release 页面下载的安装包或压缩包。安装后的 Electron App、Python sidecar 或 CLI 解包目录可以包含多个 runtime 文件。
+发布版本由 GitHub Release 提供；本地开发直接按上面的安装步骤运行即可。
 
 ## 目录结构
 
@@ -84,7 +84,7 @@ YagCode 的安全边界是本机操作系统账号和用户明确授权的项目
 - 真实 key 存在 OS keyring；状态查询只返回存在与否、Provider 和更新时间，不回显明文。
 - 工作区修改在隔离 worktree 或等价副本中完成；用户接受前不覆盖真实工作区。
 - `scan:secrets` 覆盖 worktree 和 Git history，输出只包含 detector 与位置，不打印匹配值。
-- GitHub Pages 是静态产品落地页，只展示产品、截图、机制演示命令和下载/源码链接；它不接收 key、文件或任务输入，也不连接 Provider、sidecar、shell 或在线 Agent runtime。
+- GitHub Pages 是静态产品落地页，只展示产品、截图和下载/源码链接；它不接收 key、文件或任务输入，也不连接 Provider、sidecar、shell 或在线 Agent runtime。
 
 ## 目标机器凭据配置
 
@@ -110,10 +110,9 @@ npm run demo
 
 ## 已知限制
 
-- macOS Intel、Linux 桌面安装包和 universal binary 不在本项目范围内。
-- 当前安装包未签名；macOS Gatekeeper 和 Windows SmartScreen 可能提示未知开发者。
-- Windows 桌面 `.exe` 与 CLI `.zip` 需要在 Windows runner 上构建和 smoke。
-- Release、Pages 和平台包由 GitHub Actions 生成；本地 checkout 默认不包含 `dist/` 产物。
+- 当前发布产物未签名；macOS Gatekeeper 和 Windows SmartScreen 可能提示未知开发者。
+- Linux 桌面应用和 macOS Intel 构建暂不提供。
+- Release 与 Pages 由 GitHub Actions 生成；本地 checkout 默认不包含 `dist/` 产物。
 
 ## 第三方依赖与许可证
 

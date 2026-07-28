@@ -107,7 +107,7 @@ def test_readme_and_docs_cover_project_requirements() -> None:
         "项目简介",
         "安装",
         "运行",
-        "分发",
+        "获取项目",
         "目录结构",
         "安全边界",
         "目标机器凭据配置",
