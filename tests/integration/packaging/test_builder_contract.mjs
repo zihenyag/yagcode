@@ -18,6 +18,7 @@ test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   const cli = cliBuildPlan({ root, platform: 'mac', arch: 'arm64' });
   const winCli = cliBuildPlan({ root, platform: 'win', arch: 'x64' });
   const desktop = desktopBuildPlan({ root, platform: 'mac', arch: 'arm64' });
+  const winDesktop = desktopBuildPlan({ root, platform: 'win', arch: 'x64' });
 
   assert.equal(sidecar.key, 'darwin-arm64');
   assert.equal(cli.target.asset, 'yagcode-cli-mac-arm64.tar.gz');
@@ -30,6 +31,10 @@ test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   assert.ok(desktop.commands[1].argv.includes('never'));
   assert.equal(winSidecar.commands[0].command, '/repo/.venv/Scripts/pyinstaller.exe');
   assert.equal(winCli.commands[0].command, '/repo/.venv/Scripts/pyinstaller.exe');
+  assert.deepEqual(winDesktop.commands[0], {
+    command: 'cmd.exe',
+    argv: ['/d', '/s', '/c', 'npm.cmd run build --workspace apps/desktop'],
+  });
 });
 
 test('desktop builder strips signing secrets and rejects updater metadata', () => {

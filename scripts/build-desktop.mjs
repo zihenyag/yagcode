@@ -21,7 +21,7 @@ export function desktopBuildPlan({ root = process.cwd(), platform, arch }) {
     asset: join(root, 'dist', 'release', target.asset),
     manifest: join(root, 'dist', 'manifests', `${target.key}.json`),
     commands: [
-      { command: 'npm', argv: ['run', 'build', '--workspace', 'apps/desktop'] },
+      npmStep(target.platformId, ['run', 'build', '--workspace', 'apps/desktop']),
       {
         command: process.execPath,
         argv: [
@@ -40,6 +40,11 @@ export function desktopBuildPlan({ root = process.cwd(), platform, arch }) {
       ELECTRON_BUILDER_CACHE: join(tmpdir(), 'yagcode-electron-builder-cache'),
     },
   };
+}
+
+export function npmStep(platformId, argv) {
+  if (platformId === 'win32') return { command: 'cmd.exe', argv: ['/d', '/s', '/c', `npm.cmd ${argv.join(' ')}`] };
+  return { command: 'npm', argv };
 }
 
 export function buildDesktop({ root = process.cwd(), platform, arch, spawn = spawnSync } = {}) {
