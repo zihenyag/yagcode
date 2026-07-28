@@ -79,6 +79,8 @@ def test_platform_build_workflow_keeps_release_tag_gated() -> None:
     assert "npm run package:cli:win" in _runs(jobs["build-windows-x64"])
     assert "npm run smoke:installed -- --platform win32-x64 --root dist/installed/win32-x64/yagcode" in _runs(jobs["build-windows-x64"])
     assert "npm run manifest:merge" in _runs(jobs["release"])
+    assert "python -m venv .venv" in _runs(jobs["release"])
+    assert ".venv/bin/python -m pip install -e '.[dev]'" in _runs(jobs["release"])
     create_release = next(step for step in jobs["release"]["steps"] if step.get("name") == "Create release")
     assert create_release["env"] == {"GH_TOKEN": "${{ github.token }}"}
     assert '--title "YagCode $GITHUB_REF_NAME"' in create_release["run"]
