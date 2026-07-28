@@ -116,7 +116,7 @@ npm run demo
 - macOS Intel、Linux 桌面安装包和 universal binary 不在本项目范围内。
 - 当前安装包未签名；macOS Gatekeeper 和 Windows SmartScreen 可能提示未知开发者。
 - Windows 最新源码的桌面 `.exe` 与 CLI `.zip` 还没有在本轮原生 runner 上完成验证。
-- 远程 GitHub Release、GitHub Pages 公网 URL、GitHub pipeline pass 和 GitHub Actions pass 需要用户另行授权 push/dispatch 后取得。
+- 远程 GitHub Release、GitHub Pages 公网 URL 和 GitHub Actions pass 需要用户另行授权 push/dispatch 后取得。仓库保留 `GitHub Actions` 兼容项目清单里的 `offline-check` 项，但当前交付按用户决定只使用 GitHub，不再等待 GitHub remote 或 pipeline pass。
 - Release notes are maintained in CHANGELOG.md.
 
 ## 第三方依赖与许可证
