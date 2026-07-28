@@ -174,7 +174,12 @@ def test_landing_page_no_longer_requires_video() -> None:
     assert "Bilibili" not in html
     assert "<iframe" not in html
     assert "docs/landing/landing.js" not in html
-    assert "机制演示" in html
+    assert 'id="security"' not in html
+    assert 'id="demo"' not in html
+    assert "YagCode Desktop for macOS" in html
+    assert "YagCode Desktop for Windows" in html
+    assert "YagCode CLI for macOS" in html
+    assert "YagCode CLI for Windows" in html
     assert "Bilibili" not in checker
 
 

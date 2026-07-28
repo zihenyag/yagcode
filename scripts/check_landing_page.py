@@ -23,11 +23,20 @@ SCREENSHOTS = (
 REQUIRED_TEXT = (
     "YagCode",
     "受约束、可回档、可审计的本地 Coding Agent",
-    "网页只是产品落地页，不是在线 Agent",
-    "不会读取仓库、接收密钥、连接 Provider、连接 sidecar、上传文件、运行 shell",
     "GitHub Pages 仅展示产品与下载入口",
-    "机制演示",
-    "npm run demo",
+    "YagCode Desktop for macOS",
+    "YagCode Desktop for Windows",
+    "YagCode CLI for macOS",
+    "YagCode CLI for Windows",
+    "GitHub",
+)
+
+REQUIRED_LINKS = (
+    "https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-mac-arm64.dmg",
+    "https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-win-x64.exe",
+    "https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-cli-mac-arm64.tar.gz",
+    "https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-cli-win-x64.zip",
+    "https://github.com/zihenyag/yagcode",
 )
 
 FORBIDDEN_PATTERNS = (
@@ -70,6 +79,7 @@ class LandingParser(HTMLParser):
         self.iframes = 0
         self.scripts: list[str] = []
         self.stylesheets: list[str] = []
+        self.links: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr = {key: value or "" for key, value in attrs}
@@ -83,6 +93,8 @@ class LandingParser(HTMLParser):
             self.scripts.append(attr.get("src", ""))
         if tag == "link" and attr.get("rel") == "stylesheet":
             self.stylesheets.append(attr.get("href", ""))
+        if tag == "a":
+            self.links.append(attr.get("href", ""))
 
 def main() -> int:
     problems: list[str] = []
@@ -97,6 +109,9 @@ def main() -> int:
     for text in REQUIRED_TEXT:
         if text not in html:
             problems.append(f"missing required text: {text}")
+    for href in REQUIRED_LINKS:
+        if href not in parser.links:
+            problems.append(f"missing required link: {href}")
     for directive in REQUIRED_CSP:
         if directive not in parser.csp:
             problems.append(f"missing CSP directive: {directive}")
@@ -125,6 +140,8 @@ def main() -> int:
             problems.append(f"forbidden executable/static page pattern: {pattern}")
     if "第三方视频" in combined:
         problems.append("landing page must not require a video URL")
+    if 'id="security"' in combined or 'id="demo"' in combined:
+        problems.append("removed landing sections must not return")
     if LANDING_JS.exists():
         problems.append("landing.js should not exist when the root page has no runtime script")
     if len(css) < 2000:

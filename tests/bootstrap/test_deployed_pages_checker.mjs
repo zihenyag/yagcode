@@ -18,7 +18,11 @@ test("deployed pages checker verifies html and linked same-origin assets", async
     "<meta http-equiv=\"Content-Security-Policy\" content=\"connect-src 'none'; frame-src 'none'\">",
     "<h1>YagCode</h1>",
     "<p>受约束、可回档、可审计的本地 Coding Agent</p>",
-    "<p>机制演示 npm run demo</p>",
+    "<a href=\"https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-mac-arm64.dmg\">YagCode Desktop for macOS</a>",
+    "<a href=\"https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-win-x64.exe\">YagCode Desktop for Windows</a>",
+    "<a href=\"https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-cli-mac-arm64.tar.gz\">YagCode CLI for macOS</a>",
+    "<a href=\"https://github.com/zihenyag/yagcode/releases/download/v0.1.0/yagcode-cli-win-x64.zip\">YagCode CLI for Windows</a>",
+    "<a href=\"https://github.com/zihenyag/yagcode\">GitHub</a>",
     "<link rel=\"stylesheet\" href=\"docs/landing/landing.css\">",
     "<img src=\"docs/landing/assets/screenshots/setup-agent.png\" alt=\"setup agent screenshot\">",
   ].join("");
@@ -38,7 +42,7 @@ test("deployed pages checker verifies html and linked same-origin assets", async
   assert.deepEqual(result, {
     checked_url: baseUrl,
     linked_assets_checked: 2,
-    required_text_found: 3,
+    required_text_found: 7,
   });
 });
 

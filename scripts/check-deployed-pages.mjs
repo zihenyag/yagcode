@@ -3,7 +3,11 @@ import { fileURLToPath } from "node:url";
 const REQUIRED_TEXT = [
   "YagCode",
   "受约束、可回档、可审计的本地 Coding Agent",
-  "机制演示",
+  "YagCode Desktop for macOS",
+  "YagCode Desktop for Windows",
+  "YagCode CLI for macOS",
+  "YagCode CLI for Windows",
+  "GitHub",
 ];
 
 const FORBIDDEN = [
