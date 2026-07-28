@@ -108,12 +108,15 @@ def test_platform_build_workflow_keeps_release_tag_gated() -> None:
     assert "npm run package:cli:win" in _runs(jobs["build-windows-x64"])
     assert "npm run smoke:installed -- --platform win32-x64 --root dist/installed/win32-x64/yagcode" in _runs(jobs["build-windows-x64"])
     assert "npm run manifest:merge" in _runs(jobs["release"])
+    create_release = next(step for step in jobs["release"]["steps"] if step.get("name") == "Create release")
+    assert create_release["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    assert (ROOT / "CHANGELOG.md").is_file()
     _assert_pinned_actions(workflow)
 
 
 def test_pages_workflow_has_no_video_or_runtime_input() -> None:
     workflow = _load_workflow(".github/workflows/pages.yml")
-    assert workflow["on"] == {"workflow_dispatch": {}}
+    assert workflow["on"] == {"push": {"branches": ["main"]}, "workflow_dispatch": {}}
     assert "inputs" not in workflow["on"].get("workflow_dispatch", {})
     build = workflow["jobs"]["build-pages"]
     deploy = workflow["jobs"]["deploy-pages"]
@@ -131,6 +134,7 @@ def test_pages_workflow_has_no_video_or_runtime_input() -> None:
     assert "npm run check:landing" in _runs(build)
     assert "npm run build:pages -- --output dist/pages" in _runs(build)
     assert 'test -n "$YAGCODE_PAGES_URL"' in _runs(smoke)
+    assert 'npm run check:deployed-pages -- "$YAGCODE_PAGES_URL"' in _runs(smoke)
     _assert_pinned_actions(workflow)
 
 

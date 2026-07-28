@@ -1,6 +1,8 @@
 name: pages
 
 "on":
+  push:
+    branches: ["main"]
   workflow_dispatch: {}
 
 jobs:
@@ -91,5 +93,5 @@ jobs:
         run: node -e "if (process.versions.node !== '22.14.0') process.exit(1)"
       - name: Reject missing deployment URL
         run: test -n "$YAGCODE_PAGES_URL"
-      - name: Check landing page
-        run: npm run check:landing
+      - name: Smoke deployed Pages
+        run: npm run check:deployed-pages -- "$YAGCODE_PAGES_URL"

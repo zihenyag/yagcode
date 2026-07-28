@@ -32,7 +32,8 @@
     "smoke:installed": "node scripts/smoke-installed-app.mjs",
     "smoke:cli": "node scripts/smoke-cli.mjs",
     "build:pages": "node scripts/build-pages.mjs",
+    "check:deployed-pages": "node scripts/check-deployed-pages.mjs",
     "test:packaging-runners": "node --test tests/integration/packaging/test_builder_contract.mjs tests/integration/packaging/test_version_contract.mjs tests/integration/packaging/test_runtime_inventory.mjs",
-    "test:delivery-runners": "node --test tests/bootstrap/test_ci_evidence_writer.mjs tests/bootstrap/test_release_ref.mjs"
+    "test:delivery-runners": "node --test tests/bootstrap/test_ci_evidence_writer.mjs tests/bootstrap/test_release_ref.mjs tests/bootstrap/test_deployed_pages_checker.mjs"
   }
 }
