@@ -38,8 +38,24 @@ jobs:
         run: python -m venv .venv
       - name: Install Python dependencies
         run: .venv/bin/python -m pip install -e '.[dev]'
-      - name: Run complete local gates
-        run: npm run test:all
+      - name: Run Node runner tests
+        run: npm run test:runners
+      - name: Run Python test suite
+        run: npm run test:python
+      - name: Lint Python
+        run: npm run lint:python
+      - name: Typecheck Python
+        run: npm run typecheck:python
+      - name: Check landing page
+        run: npm run check:landing
+      - name: Scan framework boundary
+        run: npm run scan:framework-boundary
+      - name: Scan worktree secrets
+        run: npm run scan:secrets
+      - name: Run packaging runner tests
+        run: npm run test:packaging-runners
+      - name: Run delivery runner tests
+        run: npm run test:delivery-runners
       - name: Run delivery contract
         run: npm run test:python -- tests/bootstrap/test_delivery_contract.py -q
       - name: Scan worktree and history secrets
