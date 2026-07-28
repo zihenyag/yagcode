@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,7 +23,7 @@ export function sidecarBuildPlan({ root = process.cwd(), platform, arch }) {
     key,
     commands: [
       {
-        command: join(root, '.venv', 'bin', 'pyinstaller'),
+        command: pyinstallerExecutable(root, key),
         argv: [
           '--noconfirm',
           '--clean',
@@ -44,6 +45,12 @@ export function sidecarBuildPlan({ root = process.cwd(), platform, arch }) {
   };
 }
 
+export function pyinstallerExecutable(root, key) {
+  return key.startsWith('win32')
+    ? join(root, '.venv', 'Scripts', 'pyinstaller.exe')
+    : join(root, '.venv', 'bin', 'pyinstaller');
+}
+
 export function buildSidecar({ root = process.cwd(), platform, arch, spawn = spawnSync } = {}) {
   assertVersionContract();
   const plan = sidecarBuildPlan({ root, platform, arch });
@@ -51,7 +58,7 @@ export function buildSidecar({ root = process.cwd(), platform, arch, spawn = spa
   for (const step of plan.commands) {
     const result = spawn(step.command, step.argv, {
       cwd: root,
-      env: { ...process.env, PYINSTALLER_CONFIG_DIR: '/private/tmp/yagcode-pyinstaller-cache' },
+      env: { ...process.env, PYINSTALLER_CONFIG_DIR: join(tmpdir(), 'yagcode-pyinstaller-cache') },
       stdio: 'inherit',
       shell: false,
     });

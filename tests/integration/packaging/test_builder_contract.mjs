@@ -14,7 +14,9 @@ import { smokeInstalledApp } from '../../../scripts/smoke-installed-app.mjs';
 test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   const root = '/repo';
   const sidecar = sidecarBuildPlan({ root, platform: 'mac', arch: 'arm64' });
+  const winSidecar = sidecarBuildPlan({ root, platform: 'win', arch: 'x64' });
   const cli = cliBuildPlan({ root, platform: 'mac', arch: 'arm64' });
+  const winCli = cliBuildPlan({ root, platform: 'win', arch: 'x64' });
   const desktop = desktopBuildPlan({ root, platform: 'mac', arch: 'arm64' });
 
   assert.equal(sidecar.key, 'darwin-arm64');
@@ -26,6 +28,8 @@ test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   assert.ok(desktop.commands[1].argv.includes('/repo/node_modules/electron-builder/cli.js'));
   assert.ok(desktop.commands[1].argv.includes('--publish'));
   assert.ok(desktop.commands[1].argv.includes('never'));
+  assert.equal(winSidecar.commands[0].command, '/repo/.venv/Scripts/pyinstaller.exe');
+  assert.equal(winCli.commands[0].command, '/repo/.venv/Scripts/pyinstaller.exe');
 });
 
 test('desktop builder strips signing secrets and rejects updater metadata', () => {
@@ -33,8 +37,8 @@ test('desktop builder strips signing secrets and rejects updater metadata', () =
   assert.equal(env.CSC_LINK, undefined);
   assert.equal(env.WIN_CSC_KEY_PASSWORD, undefined);
   assert.equal(env.CSC_IDENTITY_AUTO_DISCOVERY, 'false');
-  assert.equal(env.ELECTRON_CACHE, '/private/tmp/yagcode-electron-cache');
-  assert.equal(env.ELECTRON_BUILDER_CACHE, '/private/tmp/yagcode-electron-builder-cache');
+  assert.equal(env.ELECTRON_CACHE, join(tmpdir(), 'yagcode-electron-cache'));
+  assert.equal(env.ELECTRON_BUILDER_CACHE, join(tmpdir(), 'yagcode-electron-builder-cache'));
   assert.equal(env.KEEP, '1');
 
   const directory = join(tmpdir(), `yagcode-updater-${Date.now()}`);

@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,7 +31,7 @@ export function cliBuildPlan({ root = process.cwd(), platform, arch }) {
     manifest: join(root, 'dist', 'manifests', `cli-${target.key}.json`),
     commands: [
       {
-        command: join(root, '.venv', 'bin', 'pyinstaller'),
+        command: pyinstallerExecutable(root, target.key),
         argv: [
           '--noconfirm',
           '--clean',
@@ -53,6 +54,12 @@ export function cliBuildPlan({ root = process.cwd(), platform, arch }) {
   };
 }
 
+export function pyinstallerExecutable(root, key) {
+  return key.startsWith('win32')
+    ? join(root, '.venv', 'Scripts', 'pyinstaller.exe')
+    : join(root, '.venv', 'bin', 'pyinstaller');
+}
+
 export function buildCli({ root = process.cwd(), platform, arch, spawn = spawnSync } = {}) {
   assertVersionContract();
   const plan = cliBuildPlan({ root, platform, arch });
@@ -60,7 +67,7 @@ export function buildCli({ root = process.cwd(), platform, arch, spawn = spawnSy
   for (const step of plan.commands) {
     const result = spawn(step.command, step.argv, {
       cwd: root,
-      env: { ...process.env, PYINSTALLER_CONFIG_DIR: '/private/tmp/yagcode-pyinstaller-cache' },
+      env: { ...process.env, PYINSTALLER_CONFIG_DIR: join(tmpdir(), 'yagcode-pyinstaller-cache') },
       stdio: 'inherit',
       shell: false,
     });

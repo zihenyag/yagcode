@@ -1,19 +1,21 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
 export function readVersionSnapshot({
   root = process.cwd(),
+  platform = process.platform,
   spawn = spawnSync,
   readFile = readFileSync,
 } = {}) {
   const rootPackage = JSON.parse(readFile(`${root}/package.json`, 'utf8'));
   const desktopPackage = JSON.parse(readFile(`${root}/apps/desktop/package.json`, 'utf8'));
   const python = spawn(
-    `${root}/.venv/bin/python`,
-    [`${root}/scripts/read-python-project-version.py`, root],
+    pythonInterpreter({ root, platform }),
+    [join(root, 'scripts', 'read-python-project-version.py'), root],
     { cwd: root, encoding: 'utf8', shell: false },
   );
   if (python.error || python.signal || python.status !== 0) {
@@ -24,6 +26,12 @@ export function readVersionSnapshot({
     desktop: desktopPackage.version,
     python: python.stdout.trim(),
   };
+}
+
+export function pythonInterpreter({ root = process.cwd(), platform = process.platform } = {}) {
+  if (platform === 'win32') return join(root, '.venv', 'Scripts', 'python.exe');
+  if (platform === 'darwin' || platform === 'linux') return join(root, '.venv', 'bin', 'python');
+  throw new Error('PYTHON_PLATFORM_UNSUPPORTED');
 }
 
 export function assertVersionContract(snapshot = readVersionSnapshot()) {

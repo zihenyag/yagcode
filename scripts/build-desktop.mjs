@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,8 +36,8 @@ export function desktopBuildPlan({ root = process.cwd(), platform, arch }) {
     ],
     env: {
       CSC_IDENTITY_AUTO_DISCOVERY: 'false',
-      ELECTRON_CACHE: '/private/tmp/yagcode-electron-cache',
-      ELECTRON_BUILDER_CACHE: '/private/tmp/yagcode-electron-builder-cache',
+      ELECTRON_CACHE: join(tmpdir(), 'yagcode-electron-cache'),
+      ELECTRON_BUILDER_CACHE: join(tmpdir(), 'yagcode-electron-builder-cache'),
     },
   };
 }
@@ -73,8 +74,8 @@ export function sanitizedEnv(base, extra = {}) {
     delete copy[key];
   }
   copy.CSC_IDENTITY_AUTO_DISCOVERY = 'false';
-  copy.ELECTRON_CACHE = extra.ELECTRON_CACHE ?? '/private/tmp/yagcode-electron-cache';
-  copy.ELECTRON_BUILDER_CACHE = extra.ELECTRON_BUILDER_CACHE ?? '/private/tmp/yagcode-electron-builder-cache';
+  copy.ELECTRON_CACHE = extra.ELECTRON_CACHE ?? join(tmpdir(), 'yagcode-electron-cache');
+  copy.ELECTRON_BUILDER_CACHE = extra.ELECTRON_BUILDER_CACHE ?? join(tmpdir(), 'yagcode-electron-builder-cache');
   return copy;
 }
 
