@@ -113,7 +113,16 @@ class _DirectoryHandle:
 
 def _identity_from_stat(info: os.stat_result) -> FileIdentity:
     if os.name == "posix":
-        return FileIdentity("posix", (info.st_dev, info.st_ino))
+        token = [int(info.st_dev), int(info.st_ino)]
+        if stat.S_ISREG(info.st_mode):
+            token.extend(
+                (
+                    int(getattr(info, "st_ctime_ns", int(info.st_ctime * 1_000_000_000))),
+                    int(getattr(info, "st_mtime_ns", int(info.st_mtime * 1_000_000_000))),
+                    int(info.st_size),
+                )
+            )
+        return FileIdentity("posix", tuple(token))
     if os.name == "nt":
         return _windows_identity(info)
     raise OSError("no-follow identity adapter unavailable")

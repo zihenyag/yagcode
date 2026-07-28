@@ -314,6 +314,19 @@ def _assert_same_mtime(path: Path, before: int) -> None:
     assert path.stat().st_mtime_ns == before
 
 
+@pytest.mark.posix_only
+def test_posix_regular_identity_includes_change_metadata(tmp_path: Path) -> None:
+    atomic, _, _ = load_schema_export_contract()
+    target = tmp_path / "target.txt"
+    target.write_bytes(b"old")
+    original = atomic.DEFAULT_OPS.lstat(target).identity
+    target.unlink()
+    target.write_bytes(b"replacement")
+    replacement = atomic.DEFAULT_OPS.lstat(target).identity
+    assert original != replacement
+    assert len(original.token) == 5
+
+
 def test_check_missing_and_stale_are_nonzero_without_writing(tmp_path: Path) -> None:
     atomic, schema, _ = load_schema_export_contract()
     del atomic
