@@ -81,6 +81,8 @@ def test_platform_build_workflow_keeps_release_tag_gated() -> None:
     assert "npm run manifest:merge" in _runs(jobs["release"])
     create_release = next(step for step in jobs["release"]["steps"] if step.get("name") == "Create release")
     assert create_release["env"] == {"GH_TOKEN": "${{ github.token }}"}
+    assert '--title "YagCode $GITHUB_REF_NAME"' in create_release["run"]
+    assert "--notes-file CHANGELOG.md" in create_release["run"]
     assert (ROOT / "CHANGELOG.md").is_file()
     _assert_pinned_actions(workflow)
 
