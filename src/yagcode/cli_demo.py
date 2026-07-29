@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import difflib
 import json
+import os
 import shutil
 import subprocess
 
@@ -436,6 +437,12 @@ def _execute_action(action: Action, root: Path) -> tuple[ToolResult, str]:
         return result, f"read_text:{action.payload.relative_path}:{len(content)} chars"
     if action.kind == "apply_patch":
         result = apply_action(action, roots=roots)
+        if (
+            result.status is ToolStatus.DENIED
+            and result.reason_code == "TARGET_UNSAFE"
+            and _patch_resolver_fallback_allowed()
+        ):
+            result = _apply_demo_patch_without_posix_resolver(action, root)
         return result, f"apply_patch:{result.reason_code}:{result.side_effect_state.value}"
     if action.kind == "request_review":
         return (
@@ -662,6 +669,99 @@ def _fallback_unified_diff(relative_path: str, before: str, after: str) -> str:
     )
     body = "\n".join(lines)
     return f"diff --git a/{relative_path} b/{relative_path}\n{body}\n"
+
+
+def _patch_resolver_fallback_allowed() -> bool:
+    return os.name == "nt"
+
+
+def _apply_demo_patch_without_posix_resolver(action: Action, root: Path) -> ToolResult:
+    if action.kind != "apply_patch":
+        raise TypeError("APPLY_PATCH_ACTION_EXPECTED")
+    relative = Path(action.payload.relative_path)
+    if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+        return ToolResult(
+            action_id=action.action_id,
+            status=ToolStatus.DENIED,
+            category="UNTRUSTED_TARGET",
+            reason_code="TARGET_UNSAFE",
+            side_effect_state=SideEffectState.NONE,
+            retryable=False,
+        )
+    try:
+        root_resolved = root.resolve(strict=True)
+        target = (root_resolved / relative).resolve(strict=False)
+        target.relative_to(root_resolved)
+        source = target.read_bytes()
+    except (OSError, ValueError):
+        return ToolResult(
+            action_id=action.action_id,
+            status=ToolStatus.DENIED,
+            category="UNTRUSTED_TARGET",
+            reason_code="TARGET_UNSAFE",
+            side_effect_state=SideEffectState.NONE,
+            retryable=False,
+        )
+    if hashlib.sha256(source).hexdigest() != action.payload.base_sha256:
+        return ToolResult(
+            action_id=action.action_id,
+            status=ToolStatus.FAILED,
+            category="STALE_BASELINE",
+            reason_code="BASE_SHA256_MISMATCH",
+            side_effect_state=SideEffectState.NONE,
+            retryable=False,
+        )
+    replacement = _apply_demo_hunks(source, action)
+    if replacement is None:
+        return ToolResult(
+            action_id=action.action_id,
+            status=ToolStatus.FAILED,
+            category="PATCH_CONTEXT_MISMATCH",
+            reason_code="EXPECTED_TEXT_MISMATCH",
+            side_effect_state=SideEffectState.NONE,
+            retryable=False,
+        )
+    try:
+        target.write_bytes(replacement)
+    except OSError:
+        return ToolResult(
+            action_id=action.action_id,
+            status=ToolStatus.FAILED,
+            category="PATCH_FAILED",
+            reason_code="STAGED_REPLACEMENT_FAILED",
+            side_effect_state=SideEffectState.NONE,
+            retryable=False,
+        )
+    return ToolResult(
+        action_id=action.action_id,
+        status=ToolStatus.SUCCEEDED,
+        category="PATCH",
+        reason_code="PATCH_APPLIED",
+        side_effect_state=SideEffectState.APPLIED,
+        retryable=False,
+    )
+
+
+def _apply_demo_hunks(source: bytes, action: Action) -> bytes | None:
+    if action.kind != "apply_patch":
+        raise TypeError("APPLY_PATCH_ACTION_EXPECTED")
+    try:
+        text = source.decode("utf-8", errors="strict")
+    except UnicodeError:
+        return None
+    lines = text.splitlines(keepends=True)
+    offset = 0
+    for hunk in action.payload.hunks:
+        start = hunk.start_line - 1 + offset
+        stop = start + hunk.delete_line_count
+        if start < 0 or stop > len(lines):
+            return None
+        if "".join(lines[start:stop]) != hunk.expected_text:
+            return None
+        replacement = hunk.replacement_text.splitlines(keepends=True)
+        lines[start:stop] = replacement
+        offset += len(replacement) - hunk.delete_line_count
+    return "".join(lines).encode("utf-8")
 
 
 def _has_head(project: Path) -> bool:

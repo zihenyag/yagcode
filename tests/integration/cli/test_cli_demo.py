@@ -5,6 +5,7 @@ from pathlib import Path
 
 from yagcode.cli import main
 from yagcode.cli_demo import run_cli_demo
+from yagcode.domain.results import SideEffectState, ToolResult, ToolStatus
 
 
 def test_cli_demo_runs_two_agents_ten_projects_fifty_threads_three_bug_fixes_and_rollback(
@@ -92,3 +93,34 @@ def test_cli_demo_falls_back_when_git_executable_is_missing(tmp_path: Path, monk
     assert public["rollback"]["status"] == "RESTORED"
     assert all(item["diff"]["files_changed"] == 1 for item in public["bug_fixes"])
     assert all(item["diff"]["files"][0]["path"] == "bug.py" for item in public["bug_fixes"])
+
+
+def test_cli_demo_falls_back_when_patch_resolver_is_unavailable(tmp_path: Path, monkeypatch) -> None:
+    def deny_patch(action, *, roots):
+        return ToolResult(
+            action_id=action.action_id,
+            status=ToolStatus.DENIED,
+            category="UNTRUSTED_TARGET",
+            reason_code="TARGET_UNSAFE",
+            side_effect_state=SideEffectState.NONE,
+            retryable=False,
+        )
+
+    monkeypatch.setattr("yagcode.cli_demo._git_available", lambda: False)
+    monkeypatch.setattr("yagcode.cli_demo._patch_resolver_fallback_allowed", lambda: True)
+    monkeypatch.setattr("yagcode.cli_demo.apply_action", deny_patch)
+
+    report = run_cli_demo(
+        workspace=tmp_path / "cli-demo",
+        provider="scripted",
+        model="scripted-local",
+        real_provider=False,
+    )
+    public = report.to_public_dict()
+
+    assert [item["status"] for item in public["bug_fixes"]] == [
+        "ROLLED_BACK",
+        "PATCHED",
+        "PATCHED",
+    ]
+    assert all("apply_patch:PATCH_APPLIED:APPLIED" in item["observations"] for item in public["bug_fixes"])
