@@ -32,7 +32,13 @@ cd C:\path\to\your\git-project
 /provider add openai --model gpt-5.6-sol
 ```
 
-CLI 会在终端里隐藏输入 API key。key 不会打印到屏幕、日志或 diff 里，验证通过后写入系统 keyring。
+自定义 Provider 需要提供 HTTPS 接口地址：
+
+```text
+/provider add localai --label "Local AI" --base-url https://llm.example.com/v1/chat/completions --docs-url https://llm.example.com/docs --model localai-coder
+```
+
+CLI 会在终端里隐藏输入 API key。key 不会打印到屏幕、日志或 diff 里，验证通过后写入系统 keyring。内置 Provider 可以只写厂商名和模型；自定义 Provider 必须写 `--base-url`，建议同时写 `--docs-url`，方便之后审计配置来源。
 
 常用命令：
 

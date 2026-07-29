@@ -48,7 +48,11 @@ test('cli package copies the Chinese usage guide into the release directory', ()
   const root = join(tmpdir(), `yagcode-cli-guide-${Date.now()}`);
   mkdirSync(join(root, 'packaging', 'cli'), { recursive: true });
   const source = join(root, 'packaging', 'cli', 'CLI使用指南.md');
-  writeFileSync(source, '# YagCode CLI 使用指南\n\n/provider add openai\n/diff\n/rollback checkpoint-1\n', 'utf8');
+  writeFileSync(
+    source,
+    '# YagCode CLI 使用指南\n\n/provider add openai --base-url https://llm.example.invalid --docs-url https://llm.example.invalid/docs\n/diff\n/rollback checkpoint-1\n',
+    'utf8',
+  );
   const plan = cliBuildPlan({ root, platform: 'mac', arch: 'arm64' });
 
   copyCliGuide(plan.guide);
@@ -56,6 +60,8 @@ test('cli package copies the Chinese usage guide into the release directory', ()
   const copied = readFileSync(plan.guide.destination, 'utf8');
   assert.match(copied, /YagCode CLI 使用指南/);
   assert.match(copied, /\/provider add openai/);
+  assert.match(copied, /--base-url/);
+  assert.match(copied, /--docs-url/);
   assert.match(copied, /\/rollback checkpoint-1/);
 });
 
@@ -66,7 +72,7 @@ test('cli smoke requires the packaged Chinese usage guide', () => {
   writeFileSync(executable, 'fake executable', 'utf8');
   writeFileSync(
     join(root, 'CLI使用指南.md'),
-    '/provider add\n/thread\n/run\n/changes\n/diff\n/accept\n/reject\n/rollback\n/memory\n/audit\n',
+    '/provider add\n--base-url\n--docs-url\n/thread\n/run\n/changes\n/diff\n/accept\n/reject\n/rollback\n/memory\n/audit\n',
     'utf8',
   );
 

@@ -194,13 +194,29 @@ def _handle_provider(
         _write(output_stream, f"Provider: {binding.provider} verified; model {services.desktop_demo.selected_model}")
         return
     if argv[0] != "add" or len(argv) < 2:
-        _write(output_stream, "Provider: 用法 /provider add <provider> [--model <model>]")
+        _write(
+            output_stream,
+            (
+                "Provider: 用法 /provider add <provider> [--model <model>] "
+                "[--base-url <https-url>] [--docs-url <url>] [--label <name>]"
+            ),
+        )
         return
     provider = argv[1]
     model = _option_value(argv[2:], "--model")
+    base_url = _option_value(argv[2:], "--base-url")
+    docs_url = _option_value(argv[2:], "--docs-url")
+    label = _option_value(argv[2:], "--label")
     api_key = secret_prompt(f"{provider} API key: ")
     try:
-        services.configure_demo_provider(provider, api_key, model_id=model)
+        services.configure_demo_provider(
+            provider,
+            api_key,
+            label=label,
+            base_url=base_url,
+            docs_url=docs_url,
+            model_id=model,
+        )
     except ApiDomainError as error:
         _write(output_stream, f"Provider: {error.reason_code}")
         return

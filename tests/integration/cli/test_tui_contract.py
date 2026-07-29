@@ -266,3 +266,47 @@ def test_cli_can_reject_and_rollback_candidate_review(tmp_path: Path) -> None:
     assert "Review: REJECTED" in rendered
     assert "Rollback: checkpoint-1" in rendered
     assert (repo / "src" / "example.py").read_text(encoding="utf-8") == "def answer():\n    return 1\n"
+
+
+def test_cli_can_bind_custom_provider_with_base_url_docs_and_model(tmp_path: Path) -> None:
+    repo = _make_bug_project(tmp_path)
+    keyring = _Keyring()
+    from yagcode.secrets import CredentialBroker
+
+    services = Services(
+        credential_broker=CredentialBroker(keyring),
+        provider_verifier=_Verifier(),
+        action_provider=_ActionProvider(repo),
+    )
+    stdin = io.StringIO(
+        "\n".join(
+            (
+                (
+                    "/provider add localai --label 'Local AI' --base-url https://llm.example.invalid/v1/chat/completions "
+                    "--docs-url https://llm.example.invalid/docs --model localai-coder"
+                ),
+                "/provider status",
+                "/quit",
+                "",
+            )
+        )
+    )
+    stdout = io.StringIO()
+
+    assert main(
+        [],
+        input_stream=stdin,
+        output_stream=stdout,
+        cwd=repo,
+        services=services,
+        secret_prompt=lambda _prompt: "sk-custom-provider-key",
+    ) == 0
+
+    rendered = stdout.getvalue()
+    assert "Provider localai 已验证，模型 localai-coder" in rendered
+    assert "Provider: localai verified; model localai-coder" in rendered
+    assert "sk-custom-provider-key" not in rendered
+    assert services.desktop_demo.custom_providers["localai"].label == "Local AI"
+    assert services.desktop_demo.custom_providers["localai"].url == "https://llm.example.invalid/v1/chat/completions"
+    assert services.desktop_demo.custom_providers["localai"].docs_url == "https://llm.example.invalid/docs"
+    assert any(value == "sk-custom-provider-key" for value in keyring.values.values())

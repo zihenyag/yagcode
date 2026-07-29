@@ -28,7 +28,20 @@ function assertHealthPayload(stdout) {
 function assertGuide(guide) {
   if (!existsSync(guide)) throw new Error('CLI_GUIDE_MISSING');
   const text = readFileSync(guide, 'utf8');
-  for (const expected of ['/provider add', '/thread', '/run', '/changes', '/diff', '/accept', '/reject', '/rollback', '/memory', '/audit']) {
+  for (const expected of [
+    '/provider add',
+    '--base-url',
+    '--docs-url',
+    '/thread',
+    '/run',
+    '/changes',
+    '/diff',
+    '/accept',
+    '/reject',
+    '/rollback',
+    '/memory',
+    '/audit',
+  ]) {
     if (!text.includes(expected)) throw new Error('CLI_GUIDE_INCOMPLETE');
   }
 }
