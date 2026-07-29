@@ -45,7 +45,7 @@ export function smokeDarwinDmg({ asset, manifest, spawn = spawnSync } = {}) {
     const apps = readdirSync(mountPoint).filter(name => name.endsWith('.app'));
     if (apps.length !== 1) throw new Error('DMG_APP_COUNT_INVALID');
     copiedApp = join(installRoot, apps[0]);
-    cpSync(join(mountPoint, apps[0]), copiedApp, { recursive: true, dereference: false });
+    copyInstalledApp(join(mountPoint, apps[0]), copiedApp);
   } finally {
     const detach = spawn('hdiutil', ['detach', mountPoint], { encoding: 'utf8', shell: false });
     if (detach.error || detach.signal || detach.status !== 0) throw new Error('DMG_DETACH_FAILED');
@@ -76,6 +76,10 @@ export function smokeDesktopTree({ platform, appRoot, spawn = spawnSync } = {}) 
     sidecar_executable: sidecarExecutable,
     sidecar_health: sidecarHealth,
   };
+}
+
+export function copyInstalledApp(source, destination) {
+  cpSync(source, destination, { recursive: true, dereference: false, verbatimSymlinks: true });
 }
 
 export function packagedDesktopExecutable(platform, appRoot) {

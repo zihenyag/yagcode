@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { assertVersionContract } from './check-version.mjs';
+import { pyinstallerDataArg, sidecarDataFiles } from './build-sidecar.mjs';
 import { createPlatformManifest, writeManifest } from './hash-artifacts.mjs';
 
 export function cliTarget(platform, arch) {
@@ -27,6 +28,10 @@ export function cliGuidePaths(root, key) {
 
 export function cliBuildPlan({ root = process.cwd(), platform, arch }) {
   const target = cliTarget(platform, arch);
+  const dataArgs = sidecarDataFiles(root, target.key).flatMap(({ source, destination }) => [
+    '--add-data',
+    pyinstallerDataArg(source, destination, target.key),
+  ]);
   const dist = join(root, 'dist', 'cli', target.key);
   const asset = join(root, 'dist', 'release', target.asset);
   const guide = cliGuidePaths(root, target.key);
@@ -53,6 +58,7 @@ export function cliBuildPlan({ root = process.cwd(), platform, arch }) {
           join(root, 'build', `pyinstaller-cli-${target.key}`),
           '--specpath',
           join(root, 'build', 'pyinstaller-specs'),
+          ...dataArgs,
           '--paths',
           join(root, 'src'),
           join(root, 'src', 'yagcode', 'cli.py'),

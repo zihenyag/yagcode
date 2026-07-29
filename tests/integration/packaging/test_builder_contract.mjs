@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -7,10 +7,10 @@ import { parse } from 'yaml';
 
 import { cliBuildPlan, copyCliGuide } from '../../../scripts/build-cli.mjs';
 import { desktopBuildPlan, localElectronDist, rejectUpdaterMetadata, sanitizedEnv } from '../../../scripts/build-desktop.mjs';
-import { sidecarBuildPlan } from '../../../scripts/build-sidecar.mjs';
+import { pyinstallerDataArg, sidecarBuildPlan } from '../../../scripts/build-sidecar.mjs';
 import { createPlatformManifest, canonicalJson, mergeReleaseManifests, sha256File, verifyPlatformManifest, writeManifest } from '../../../scripts/hash-artifacts.mjs';
 import { smokeCli } from '../../../scripts/smoke-cli.mjs';
-import { parseOptions, smokeDesktopTree, smokeInstalledApp } from '../../../scripts/smoke-installed-app.mjs';
+import { copyInstalledApp, parseOptions, smokeDesktopTree, smokeInstalledApp } from '../../../scripts/smoke-installed-app.mjs';
 
 test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   const root = '/repo';
@@ -38,10 +38,21 @@ test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   assert.ok(desktop.commands[1].argv.includes('never'));
   assert.equal(winSidecar.commands[0].command, '/repo/.venv/Scripts/pyinstaller.exe');
   assert.equal(winCli.commands[0].command, '/repo/.venv/Scripts/pyinstaller.exe');
+  assert.ok(sidecar.commands[0].argv.includes('/repo/src/yagcode/providers/official_endpoints.json:yagcode/providers'));
+  assert.ok(sidecar.commands[0].argv.includes('/repo/src/yagcode/onboarding/trusted_git_manifest.json:yagcode/onboarding'));
+  assert.ok(cli.commands[0].argv.includes('/repo/src/yagcode/providers/official_endpoints.json:yagcode/providers'));
+  assert.ok(cli.commands[0].argv.includes('/repo/src/yagcode/onboarding/trusted_git_manifest.json:yagcode/onboarding'));
+  assert.ok(winSidecar.commands[0].argv.includes('/repo/src/yagcode/providers/official_endpoints.json;yagcode/providers'));
+  assert.ok(winCli.commands[0].argv.includes('/repo/src/yagcode/providers/official_endpoints.json;yagcode/providers'));
   assert.deepEqual(winDesktop.commands[0], {
     command: 'cmd.exe',
     argv: ['/d', '/s', '/c', 'npm.cmd run build --workspace apps/desktop'],
   });
+});
+
+test('sidecar pyinstaller data arguments use the target platform separator', () => {
+  assert.equal(pyinstallerDataArg('/repo/src/yagcode/providers/official_endpoints.json', 'yagcode/providers', 'darwin-arm64'), '/repo/src/yagcode/providers/official_endpoints.json:yagcode/providers');
+  assert.equal(pyinstallerDataArg('/repo/src/yagcode/providers/official_endpoints.json', 'yagcode/providers', 'win32-x64'), '/repo/src/yagcode/providers/official_endpoints.json;yagcode/providers');
 });
 
 test('cli package copies the Chinese usage guide into the release directory', () => {
@@ -116,6 +127,10 @@ test('desktop builder uses the local Electron runtime when node_modules provides
 
 test('electron builder config disables dmg update metadata', () => {
   const config = parse(readFileSync('packaging/electron-builder.yml', 'utf8'));
+  assert.ok(config.files.includes('dist/main/**/*'));
+  assert.ok(config.files.includes('dist/preload/**/*'));
+  assert.ok(config.files.includes('dist/assets/**/*'));
+  assert.ok(config.files.includes('dist/src/renderer/**/*'));
   assert.equal(config.dmg.writeUpdateInfo, false);
   assert.equal(config.generateUpdatesFilesForAllChannels, false);
   assert.equal(config.win.signAndEditExecutable, false);
@@ -125,6 +140,30 @@ test('electron builder config disables dmg update metadata', () => {
 test('installed smoke rejects missing roots before launch evidence', () => {
   assert.throws(() => smokeInstalledApp({ platform: 'linux-x64', root: '/definitely/missing/yagcode' }), /INSTALLED_APP_ROOT_REQUIRED/);
   assert.throws(() => smokeInstalledApp({ platform: 'darwin-arm64' }), /DARWIN_SMOKE_ARGS_REQUIRED/);
+});
+
+test('installed smoke preserves relative symlinks copied from a DMG app', () => {
+  const root = join(tmpdir(), `yagcode-app-symlink-${Date.now()}`);
+  const source = join(root, 'mount', 'yagcode.app', 'Contents', 'Resources', 'sidecar', 'darwin-arm64', 'yagcode-sidecar');
+  const internal = join(source, '_internal');
+  mkdirSync(join(internal, 'Python.framework', 'Versions', '3.12'), { recursive: true });
+  writeFileSync(join(internal, 'Python.framework', 'Versions', '3.12', 'Python'), 'python-runtime', 'utf8');
+  symlinkSync('Python.framework/Versions/3.12/Python', join(internal, 'Python'));
+
+  const copiedApp = join(root, 'install', 'yagcode.app');
+  copyInstalledApp(join(root, 'mount', 'yagcode.app'), copiedApp);
+
+  const copiedLink = join(
+    copiedApp,
+    'Contents',
+    'Resources',
+    'sidecar',
+    'darwin-arm64',
+    'yagcode-sidecar',
+    '_internal',
+    'Python',
+  );
+  assert.equal(readlinkSync(copiedLink), 'Python.framework/Versions/3.12/Python');
 });
 
 test('installed smoke requires bundled sidecar and desktop launch evidence', () => {

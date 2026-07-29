@@ -9,7 +9,9 @@ directories:
 artifactName: "yagcode-${os}-${arch}.${ext}"
 files:
   - "dist/main/**/*"
-  - "dist/renderer/**/*"
+  - "dist/preload/**/*"
+  - "dist/assets/**/*"
+  - "dist/src/renderer/**/*"
   - "package.json"
 extraResources:
   - from: dist/sidecar

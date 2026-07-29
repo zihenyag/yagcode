@@ -6,6 +6,9 @@ import { createServer } from "node:net";
 import { join, resolve } from "node:path";
 
 const DEFAULT_DESKTOP_ORIGIN = "app://yagcode";
+const SIDECAR_HEALTH_ATTEMPTS = 40;
+const SIDECAR_HEALTH_DELAY_MS = 250;
+const SIDECAR_OUTPUT_LIMIT = 4000;
 
 export interface StartupConnection {
   baseUrl: string;
@@ -80,6 +83,8 @@ function parseError(value: unknown, fallback: string): string {
 
 export class SidecarController {
   private child: ChildProcess | undefined;
+  private childExit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+  private childOutput = "";
   private connection: StartupConnection | undefined;
 
   constructor(private readonly environment: SidecarEnvironment) {}
@@ -107,7 +112,7 @@ export class SidecarController {
       port,
       token: startupToken
     });
-    this.child = spawn(
+    const child = spawn(
       launch.command,
       launch.argv,
       {
@@ -117,6 +122,14 @@ export class SidecarController {
         stdio: ["ignore", "pipe", "pipe"]
       }
     );
+    this.child = child;
+    this.childExit = undefined;
+    this.childOutput = "";
+    child.stdout?.on("data", (chunk: Buffer) => this.rememberChildOutput(chunk));
+    child.stderr?.on("data", (chunk: Buffer) => this.rememberChildOutput(chunk));
+    child.once("exit", (code, signal) => {
+      if (this.child === child) this.childExit = { code, signal };
+    });
     this.connection = {
       baseUrl: `http://127.0.0.1:${port}`,
       token: startupToken,
@@ -173,16 +186,30 @@ export class SidecarController {
 
   private async waitForHealth(): Promise<void> {
     let lastError: unknown;
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < SIDECAR_HEALTH_ATTEMPTS; attempt += 1) {
       try {
         const health = await this.fetchJson("/api/v1/health");
         if (typeof health === "object" && health !== null && "status" in health && health.status === "ok") return;
       } catch (error) {
         lastError = error;
       }
-      await new Promise((resolveWait) => setTimeout(resolveWait, 150));
+      if (this.childExit !== undefined) {
+        throw new Error(this.sidecarExitMessage());
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, SIDECAR_HEALTH_DELAY_MS));
     }
     throw lastError instanceof Error ? lastError : new Error("SIDECAR_HEALTH_TIMEOUT");
+  }
+
+  private rememberChildOutput(chunk: Buffer): void {
+    this.childOutput = `${this.childOutput}${chunk.toString("utf8")}`.slice(-SIDECAR_OUTPUT_LIMIT);
+  }
+
+  private sidecarExitMessage(): string {
+    const exit = this.childExit;
+    const detail = exit === undefined ? "" : ` code=${exit.code ?? "null"} signal=${exit.signal ?? "null"}`;
+    const output = this.childOutput.trim();
+    return output.length > 0 ? `SIDECAR_PROCESS_EXITED${detail}\n${output}` : `SIDECAR_PROCESS_EXITED${detail}`;
   }
 
   private async fetchJson(path: string, init: RequestInit = {}): Promise<Record<string, unknown>> {

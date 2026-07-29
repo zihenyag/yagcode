@@ -19,6 +19,10 @@ export function sidecarExecutable(root, key) {
 
 export function sidecarBuildPlan({ root = process.cwd(), platform, arch }) {
   const key = targetKey(platform, arch);
+  const dataArgs = sidecarDataFiles(root, key).flatMap(({ source, destination }) => [
+    '--add-data',
+    pyinstallerDataArg(source, destination, key),
+  ]);
   return {
     key,
     commands: [
@@ -35,6 +39,7 @@ export function sidecarBuildPlan({ root = process.cwd(), platform, arch }) {
           join(root, 'build', `pyinstaller-sidecar-${key}`),
           '--specpath',
           join(root, 'build', 'pyinstaller-specs'),
+          ...dataArgs,
           '--paths',
           join(root, 'src'),
           join(root, 'src', 'yagcode', 'sidecar_cli.py'),
@@ -43,6 +48,23 @@ export function sidecarBuildPlan({ root = process.cwd(), platform, arch }) {
       { command: sidecarExecutable(root, key), argv: ['health'] },
     ],
   };
+}
+
+export function sidecarDataFiles(root, key) {
+  return [
+    {
+      source: join(root, 'src', 'yagcode', 'providers', 'official_endpoints.json'),
+      destination: 'yagcode/providers',
+    },
+    {
+      source: join(root, 'src', 'yagcode', 'onboarding', 'trusted_git_manifest.json'),
+      destination: 'yagcode/onboarding',
+    },
+  ].map(item => ({ ...item, argument: pyinstallerDataArg(item.source, item.destination, key) }));
+}
+
+export function pyinstallerDataArg(source, destination, key) {
+  return `${source}${key.startsWith('win32') ? ';' : ':'}${destination}`;
 }
 
 export function pyinstallerExecutable(root, key) {
