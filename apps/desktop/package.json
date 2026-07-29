@@ -10,7 +10,7 @@
     "dev:renderer": "node scripts/dev-renderer.mjs",
     "dev:desktop": "node scripts/dev-desktop.mjs",
     "dev:screenshots": "node scripts/dev-screenshots.mjs",
-    "test": "node ../../node_modules/vitest/vitest.mjs run src/renderer",
+    "test": "node ../../node_modules/vitest/vitest.mjs run src/renderer src/main",
     "test:e2e": "node ../../node_modules/@playwright/test/cli.js test",
     "typecheck": "node ../../node_modules/typescript/bin/tsc --noEmit && node ../../node_modules/typescript/bin/tsc -p tsconfig.main.json --noEmit",
     "lint": "node ../../node_modules/typescript/bin/tsc --noEmit && node ../../node_modules/typescript/bin/tsc -p tsconfig.main.json --noEmit",

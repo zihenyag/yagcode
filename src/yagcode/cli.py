@@ -8,8 +8,9 @@ import json
 import sys
 
 from pathlib import Path
-from typing import TextIO
+from typing import Callable, TextIO
 
+from yagcode.api.dependencies import Services
 from yagcode.cli_demo import run_cli_demo
 from yagcode.tui import health_payload, run_tui
 
@@ -36,13 +37,21 @@ def main(
     input_stream: TextIO | None = None,
     output_stream: TextIO | None = None,
     cwd: Path | None = None,
+    services: Services | None = None,
+    secret_prompt: Callable[[str], str] | None = None,
 ) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     input_stream = input_stream or sys.stdin
     output_stream = output_stream or sys.stdout
     if args.command is None:
-        return run_tui(cwd=cwd or Path.cwd(), input_stream=input_stream, output_stream=output_stream)
+        return run_tui(
+            cwd=cwd or Path.cwd(),
+            input_stream=input_stream,
+            output_stream=output_stream,
+            services=services,
+            secret_prompt=secret_prompt,
+        )
     if args.command == "health":
         print(json.dumps(health_payload(cwd=cwd or Path.cwd()), sort_keys=True), file=output_stream)
         return 0
@@ -54,8 +63,20 @@ def main(
     if args.command == "tui":
         if args.script:
             with Path(args.script).open("r", encoding="utf-8") as script:
-                return run_tui(cwd=cwd or Path.cwd(), input_stream=script, output_stream=output_stream)
-        return run_tui(cwd=cwd or Path.cwd(), input_stream=input_stream, output_stream=output_stream)
+                return run_tui(
+                    cwd=cwd or Path.cwd(),
+                    input_stream=script,
+                    output_stream=output_stream,
+                    services=services,
+                    secret_prompt=secret_prompt,
+                )
+        return run_tui(
+            cwd=cwd or Path.cwd(),
+            input_stream=input_stream,
+            output_stream=output_stream,
+            services=services,
+            secret_prompt=secret_prompt,
+        )
     if args.command == "demo":
         api_key = getpass.getpass("Provider API key: ") if args.real_provider else None
         report = run_cli_demo(

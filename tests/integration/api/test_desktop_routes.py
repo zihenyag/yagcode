@@ -641,6 +641,16 @@ def test_desktop_resume_runs_provider_action_loop_and_refreshes_real_git_diff(tm
     assert any(line["kind"] == "add" and line["content"] == "    return 2" for line in snapshot["evidence"]["diff_files"][0]["lines"])
     assert any(message["title"] == "Agent step" and "request_review" in message["body"] for message in snapshot["task"]["messages"])
 
+    rollback_id = snapshot["demo"]["checkpoints"][0]["id"]
+    assert client.post(
+        "/api/v1/commands",
+        headers=_headers(),
+        json={"type": "rollback_checkpoint", "payload": {"checkpoint_id": rollback_id}},
+    ).json() == {"ok": True}
+    assert (repo / "src" / "example.py").read_text(encoding="utf-8") == "def answer():\n    return 1\n"
+    rolled_back = client.get("/api/v1/workbench", headers=_headers()).json()
+    assert rolled_back["evidence"]["diff"] == {"files_changed": 0, "additions": 0, "deletions": 0}
+
 
 def test_desktop_resume_recovers_unique_expected_text_patch_when_model_line_count_is_wrong(tmp_path: Path) -> None:
     repo = _make_clean_bug_project(tmp_path)
@@ -737,4 +747,5 @@ def test_desktop_commands_cover_demo_panels_diff_memory_privacy_permissions_and_
     assert rolled_back["review_view"]["state"] == "RECOVERY_REQUIRED"
     assert rolled_back["evidence"]["diff"] == {"files_changed": 1, "additions": 3, "deletions": 1}
     assert rolled_back["demo"]["checkpoints"][0]["current"] is True
-    assert rolled_back["task"]["messages"][-1]["body"].endswith("未对真实工作区执行 Git 回滚。")
+    assert rolled_back["task"]["messages"][-1]["body"].startswith("已恢复 checkpoint-1；真实工作区恢复了")
+    assert (repo / "src" / "example.py").read_text(encoding="utf-8") == "def answer():\n    return 2\n\nprint(answer())\n"

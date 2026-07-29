@@ -96,10 +96,14 @@ async function main(): Promise<void> {
     return;
   }
 
+  const sidecarCwd = app.isPackaged ? app.getPath("userData") : projectRoot;
   const sidecar = new SidecarController({
-    cwd: projectRoot,
+    cwd: sidecarCwd,
     env: process.env,
-    platform: process.platform
+    platform: process.platform,
+    arch: process.arch,
+    packaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
   });
   await sidecar.start();
   registerIntentHandlers(sidecar);

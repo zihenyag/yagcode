@@ -4,7 +4,7 @@ import io
 from pathlib import Path
 
 from yagcode.cli import main
-from yagcode.sidecar_cli import main as sidecar_main
+from yagcode.sidecar_cli import build_parser, main as sidecar_main
 
 
 def test_tui_script_file_runs_without_desktop_or_system_node(tmp_path: Path) -> None:
@@ -29,3 +29,24 @@ def test_internal_sidecar_health_and_version_are_separate_from_user_tui(capsys) 
 
     assert sidecar_main(["version"]) == 0
     assert capsys.readouterr().out.strip() == "0.1.0"
+
+
+def test_internal_sidecar_serve_requires_desktop_origin_and_token() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(
+        [
+            "serve",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "49152",
+            "--origin",
+            "app://yagcode",
+            "--token",
+            "startup-token",
+        ]
+    )
+
+    assert args.origin == "app://yagcode"
+    assert args.token == "startup-token"

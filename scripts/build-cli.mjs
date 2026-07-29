@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { assertVersionContract } from './check-version.mjs';
@@ -18,19 +18,29 @@ export function cliExecutable(root, key) {
   return join(root, 'dist', 'cli', key, 'yagcode-cli', name);
 }
 
+export function cliGuidePaths(root, key) {
+  return {
+    source: join(root, 'packaging', 'cli', 'CLI使用指南.md'),
+    destination: join(root, 'dist', 'cli', key, 'yagcode-cli', 'CLI使用指南.md'),
+  };
+}
+
 export function cliBuildPlan({ root = process.cwd(), platform, arch }) {
   const target = cliTarget(platform, arch);
   const dist = join(root, 'dist', 'cli', target.key);
   const asset = join(root, 'dist', 'release', target.asset);
+  const guide = cliGuidePaths(root, target.key);
   const archiveCommand = target.platformId === 'darwin'
     ? { command: 'tar', argv: ['-czf', asset, '-C', dist, 'yagcode-cli'] }
     : { command: 'powershell.exe', argv: ['-NoProfile', '-Command', `Compress-Archive -Path "${dist}\\yagcode-cli" -DestinationPath "${asset}" -Force`] };
   return {
     target,
     asset,
+    guide,
     manifest: join(root, 'dist', 'manifests', `cli-${target.key}.json`),
     commands: [
       {
+        kind: 'spawn',
         command: pyinstallerExecutable(root, target.key),
         argv: [
           '--noconfirm',
@@ -48,8 +58,9 @@ export function cliBuildPlan({ root = process.cwd(), platform, arch }) {
           join(root, 'src', 'yagcode', 'cli.py'),
         ],
       },
-      { command: cliExecutable(root, target.key), argv: ['health'] },
-      archiveCommand,
+      { kind: 'copyGuide', ...guide, argv: [] },
+      { kind: 'spawn', command: cliExecutable(root, target.key), argv: ['health'] },
+      { kind: 'spawn', ...archiveCommand },
     ],
   };
 }
@@ -65,6 +76,10 @@ export function buildCli({ root = process.cwd(), platform, arch, spawn = spawnSy
   const plan = cliBuildPlan({ root, platform, arch });
   mkdirSync(join(root, 'dist', 'release'), { recursive: true });
   for (const step of plan.commands) {
+    if (step.kind === 'copyGuide') {
+      copyCliGuide(step);
+      continue;
+    }
     const result = spawn(step.command, step.argv, {
       cwd: root,
       env: { ...process.env, PYINSTALLER_CONFIG_DIR: join(tmpdir(), 'yagcode-pyinstaller-cache') },
@@ -82,6 +97,12 @@ export function buildCli({ root = process.cwd(), platform, arch, spawn = spawnSy
   });
   writeManifest({ output: plan.manifest, manifest });
   return plan;
+}
+
+export function copyCliGuide({ source, destination }) {
+  if (!existsSync(source)) throw new Error('CLI_GUIDE_MISSING');
+  mkdirSync(dirname(destination), { recursive: true });
+  copyFileSync(source, destination);
 }
 
 export function runCli(argv = process.argv.slice(2)) {

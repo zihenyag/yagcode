@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+import subprocess
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -13,6 +14,7 @@ from starlette.requests import Request
 
 from yagcode.api.desktop_agent import DesktopActionProvider, run_desktop_agent_step
 from yagcode.api.schemas import ProjectView, RunView
+from yagcode.git.identity import run_git
 from yagcode.git.working_tree import ProjectInspection, inspect_project
 from yagcode.providers import OfficialEndpoint, load_official_endpoints
 from yagcode.providers.runtime_http import HttpJsonActionProvider
@@ -136,11 +138,18 @@ class DemoMemoryItem:
 
 
 @dataclass(frozen=True, slots=True)
+class DemoFileSnapshot:
+    relative_path: str
+    content: bytes | None
+
+
+@dataclass(frozen=True, slots=True)
 class DemoCheckpoint:
     checkpoint_id: str
     label: str
     detail: str
     current: bool
+    files: tuple[DemoFileSnapshot, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,7 +255,14 @@ class DesktopDemoState:
     def delete_memory(self, memory_id: str) -> None:
         self.memories = [item for item in self.memories if item.memory_id != memory_id]
 
-    def append_checkpoint(self, *, label: str, detail: str, current: bool = True) -> DemoCheckpoint:
+    def append_checkpoint(
+        self,
+        *,
+        label: str,
+        detail: str,
+        current: bool = True,
+        files: tuple[DemoFileSnapshot, ...] = (),
+    ) -> DemoCheckpoint:
         self._next_checkpoint += 1
         if current:
             self.checkpoints = [
@@ -255,6 +271,7 @@ class DesktopDemoState:
                     label=item.label,
                     detail=item.detail,
                     current=False,
+                    files=item.files,
                 )
                 for item in self.checkpoints
             ]
@@ -263,6 +280,7 @@ class DesktopDemoState:
             label=label,
             detail=detail,
             current=current,
+            files=files,
         )
         self.checkpoints.append(checkpoint)
         return checkpoint
@@ -552,8 +570,9 @@ class Services:
         if not self.desktop_demo.checkpoints:
             self.desktop_demo.append_checkpoint(
                 label="当前 Git 状态",
-                detail="只读记录：打开项目并创建线程后的真实工作区状态。",
+                detail="打开项目并创建线程后的真实工作区快照。",
                 current=True,
+                files=_capture_project_snapshot(self.desktop_demo.project_path),
             )
         self.desktop_demo.append_audit(title="创建线程", detail=f"{thread.thread_id} -> READY")
         return RunRecord(
@@ -654,6 +673,7 @@ class Services:
                 label=f"{run.run_id} 候选修改",
                 detail=f"Provider calls: {result.provider_calls}; patches applied: {result.patches_applied}",
                 current=True,
+                files=_capture_project_snapshot(self.desktop_demo.project_path),
             )
             self.desktop_demo.append_message(
                 role="assistant",
@@ -807,9 +827,16 @@ class Services:
         self.desktop_demo.append_audit(title="权限模式", detail=mode)
 
     def rollback_demo_checkpoint(self, checkpoint_id: str) -> None:
-        if checkpoint_id not in {item.checkpoint_id for item in self.desktop_demo.checkpoints}:
+        target_checkpoint = next(
+            (item for item in self.desktop_demo.checkpoints if item.checkpoint_id == checkpoint_id),
+            None,
+        )
+        if target_checkpoint is None:
             raise ApiDomainError("CHECKPOINT_NOT_FOUND", http_status=404)
-        self.desktop_demo.diff_active = False
+        restored_files = _restore_project_snapshot(self.desktop_demo.project_path, target_checkpoint)
+        inspection = self.refresh_demo_project_inspection()
+        remaining = len(inspection.diff_files) if inspection is not None else 0
+        self.desktop_demo.diff_active = remaining > 0
         self.desktop_demo.review_state = "RECOVERY_REQUIRED"
         self.desktop_demo.checkpoints = [
             DemoCheckpoint(
@@ -817,15 +844,16 @@ class Services:
                 label=item.label,
                 detail=item.detail,
                 current=item.checkpoint_id == checkpoint_id,
+                files=item.files,
             )
             for item in self.desktop_demo.checkpoints
         ]
         self.desktop_demo.append_message(
             role="system",
             title="回滚",
-            body=f"已选择 {checkpoint_id}；当前 checkpoint 是只读记录，未对真实工作区执行 Git 回滚。",
+            body=f"已恢复 {checkpoint_id}；真实工作区恢复了 {restored_files} 个文件。",
         )
-        self.desktop_demo.append_audit(title="回滚", detail=checkpoint_id)
+        self.desktop_demo.append_audit(title="回滚", detail=f"{checkpoint_id}; remaining diff files: {remaining}")
 
     def accept_demo_review(self) -> None:
         if self.desktop_demo.review_state not in {"READY", "RECOVERY_REQUIRED"}:
@@ -839,7 +867,7 @@ class Services:
         self.desktop_demo.append_message(
             role="system",
             title="审查",
-            body="已拒绝当前审查项；真实工作区未被修改。",
+            body="已拒绝当前审查项；如需撤回候选修改，请执行 rollback。",
         )
         self.desktop_demo.append_audit(title="审查拒绝", detail="当前候选已拒绝。")
 
@@ -891,6 +919,74 @@ def get_services(request: Request) -> Services:
     if not isinstance(services, Services):
         raise ApiDomainError("SERVICES_UNAVAILABLE", http_status=500)
     return services
+
+
+def _capture_project_snapshot(project_path: str | None) -> tuple[DemoFileSnapshot, ...]:
+    if project_path is None:
+        return ()
+    root = Path(project_path)
+    try:
+        listing = run_git(root, "ls-files", "-co", "--exclude-standard", "-z").stdout
+    except (OSError, subprocess.CalledProcessError):
+        return ()
+    snapshots: list[DemoFileSnapshot] = []
+    for relative_path in listing.split("\0"):
+        if not relative_path:
+            continue
+        target = _snapshot_target(root, relative_path)
+        if target is None:
+            continue
+        try:
+            content = target.read_bytes() if target.is_file() and not target.is_symlink() else None
+        except OSError:
+            content = None
+        snapshots.append(DemoFileSnapshot(relative_path=relative_path, content=content))
+    return tuple(snapshots)
+
+
+def _restore_project_snapshot(project_path: str | None, checkpoint: DemoCheckpoint) -> int:
+    if project_path is None:
+        raise ApiDomainError("PROJECT_NOT_OPENED")
+    root = Path(project_path)
+    snapshot = {item.relative_path: item.content for item in checkpoint.files}
+    inspection = inspect_project(project_path)
+    if inspection.diff_files and not checkpoint.files:
+        raise ApiDomainError("CHECKPOINT_SNAPSHOT_MISSING", http_status=409)
+    restored = 0
+    for diff_file in inspection.diff_files:
+        target = _snapshot_target(root, diff_file.path)
+        if target is None:
+            raise ApiDomainError("CHECKPOINT_PATH_UNSAFE", http_status=400)
+        content = snapshot.get(diff_file.path)
+        try:
+            if content is None:
+                if target.exists():
+                    target.unlink()
+                    restored += 1
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if not target.exists() or target.read_bytes() != content:
+                target.write_bytes(content)
+                restored += 1
+        except OSError as error:
+            raise ApiDomainError("CHECKPOINT_RESTORE_FAILED", http_status=500) from error
+    return restored
+
+
+def _snapshot_target(root: Path, relative_path: str) -> Path | None:
+    if relative_path == "" or Path(relative_path).is_absolute():
+        return None
+    relative = Path(relative_path)
+    if any(part in {"", ".", ".."} for part in relative.parts):
+        return None
+    try:
+        trusted_root = root.resolve(strict=True)
+    except OSError:
+        return None
+    target = (trusted_root / relative).resolve(strict=False)
+    if not target.is_relative_to(trusted_root):
+        return None
+    return target
 
 
 __all__ = [

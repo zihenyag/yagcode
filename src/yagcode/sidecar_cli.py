@@ -18,6 +18,8 @@ def build_parser() -> argparse.ArgumentParser:
     serve = subparsers.add_parser("serve", help="start the local sidecar API server")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=0)
+    serve.add_argument("--origin", required=True)
+    serve.add_argument("--token", required=True)
     return parser
 
 
@@ -30,7 +32,18 @@ def main(argv: list[str] | None = None) -> int:
         print(__version__)
         return 0
     if args.command == "serve":
-        return server_main(["--host", args.host, "--port", str(args.port)])
+        return server_main(
+            [
+                "--host",
+                args.host,
+                "--port",
+                str(args.port),
+                "--origin",
+                args.origin,
+                "--token",
+                args.token,
+            ]
+        )
     return 2
 
 

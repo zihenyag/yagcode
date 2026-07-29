@@ -7,12 +7,24 @@ import { fileURLToPath } from 'node:url';
 
 import { sha256File, verifyPlatformManifest } from './hash-artifacts.mjs';
 
+const DESKTOP_SMOKE_TIMEOUT_MS = 30_000;
+
 export function smokeInstalledApp({ platform, asset, manifest, root, spawn = spawnSync } = {}) {
   if (platform === 'darwin-arm64') {
     return smokeDarwinDmg({ asset, manifest, spawn });
   }
   if (!root || !existsSync(root)) throw new Error('INSTALLED_APP_ROOT_REQUIRED');
-  return { state: 'root-present', root, installed_tree_sha256: hashTree(root) };
+  if (platform === 'win32-x64') {
+    const runtime = smokeDesktopTree({ platform, appRoot: root, spawn });
+    return {
+      state: 'passed',
+      platform,
+      root,
+      installed_tree_sha256: hashTree(root),
+      ...runtime,
+    };
+  }
+  throw new Error('INSTALLED_APP_PLATFORM_UNSUPPORTED');
 }
 
 export function smokeDarwinDmg({ asset, manifest, spawn = spawnSync } = {}) {
@@ -39,13 +51,74 @@ export function smokeDarwinDmg({ asset, manifest, spawn = spawnSync } = {}) {
     if (detach.error || detach.signal || detach.status !== 0) throw new Error('DMG_DETACH_FAILED');
   }
   if (existsSync(join(mountPoint, basename(copiedApp)))) throw new Error('DMG_MOUNT_STILL_ACCESSIBLE');
+  const runtime = smokeDesktopTree({ platform: 'darwin-arm64', appRoot: copiedApp, spawn });
   return {
     state: 'passed',
     platform: 'darwin-arm64',
     asset_sha256: sha256File(asset),
     installed_root: installRoot,
     installed_tree_sha256: hashTree(copiedApp),
+    ...runtime,
   };
+}
+
+export function smokeDesktopTree({ platform, appRoot, spawn = spawnSync } = {}) {
+  if (!appRoot || !existsSync(appRoot)) throw new Error('INSTALLED_APP_ROOT_REQUIRED');
+  const desktopExecutable = packagedDesktopExecutable(platform, appRoot);
+  const sidecarExecutable = packagedSidecarExecutable(platform, appRoot);
+  if (!existsSync(desktopExecutable)) throw new Error('INSTALLED_APP_EXECUTABLE_MISSING');
+  if (!existsSync(sidecarExecutable)) throw new Error('PACKAGED_SIDECAR_MISSING');
+  const sidecarHealth = smokeSidecarExecutable({ executable: sidecarExecutable, spawn });
+  const desktopLaunch = smokeDesktopExecutable({ executable: desktopExecutable, spawn });
+  return {
+    desktop_executable: desktopExecutable,
+    desktop_launch: desktopLaunch,
+    sidecar_executable: sidecarExecutable,
+    sidecar_health: sidecarHealth,
+  };
+}
+
+export function packagedDesktopExecutable(platform, appRoot) {
+  if (platform === 'darwin-arm64') return join(appRoot, 'Contents', 'MacOS', 'yagcode');
+  if (platform === 'win32-x64') return join(appRoot, 'yagcode.exe');
+  throw new Error('INSTALLED_APP_PLATFORM_UNSUPPORTED');
+}
+
+export function packagedSidecarExecutable(platform, appRoot) {
+  if (platform === 'darwin-arm64') {
+    return join(appRoot, 'Contents', 'Resources', 'sidecar', 'darwin-arm64', 'yagcode-sidecar', 'yagcode-sidecar');
+  }
+  if (platform === 'win32-x64') {
+    return join(appRoot, 'resources', 'sidecar', 'win32-x64', 'yagcode-sidecar', 'yagcode-sidecar.exe');
+  }
+  throw new Error('INSTALLED_APP_PLATFORM_UNSUPPORTED');
+}
+
+function smokeSidecarExecutable({ executable, spawn }) {
+  const result = spawn(executable, ['health'], { encoding: 'utf8', shell: false, windowsHide: true });
+  assertCommandSucceeded('SIDECAR_HEALTH_FAILED', result);
+  let payload;
+  try {
+    payload = JSON.parse(String(result.stdout ?? ''));
+  } catch {
+    throw new Error('SIDECAR_HEALTH_JSON_INVALID');
+  }
+  if (payload.state !== 'ready' || payload.product !== 'yagcode-sidecar') {
+    throw new Error('SIDECAR_HEALTH_PAYLOAD_INVALID');
+  }
+  return { state: payload.state, product: payload.product, version: payload.version };
+}
+
+function smokeDesktopExecutable({ executable, spawn }) {
+  const result = spawn(executable, [], {
+    encoding: 'utf8',
+    env: { ...process.env, YAGCODE_DESKTOP_SMOKE: '1' },
+    shell: false,
+    timeout: DESKTOP_SMOKE_TIMEOUT_MS,
+    windowsHide: true,
+  });
+  assertCommandSucceeded('DESKTOP_SMOKE_FAILED', result);
+  return { state: 'passed' };
 }
 
 export function runCli(argv = process.argv.slice(2)) {
@@ -92,6 +165,24 @@ function hashTree(root) {
   };
   visit(root);
   return hash.digest('hex');
+}
+
+function assertCommandSucceeded(reason, result) {
+  if (result?.error || result?.signal || result?.status !== 0) {
+    throw new Error(commandFailureMessage(reason, result));
+  }
+}
+
+function commandFailureMessage(reason, result) {
+  const details = [reason];
+  if (result?.error?.message) details.push(result.error.message);
+  if (result?.signal) details.push(`signal=${result.signal}`);
+  if (result?.status !== undefined && result?.status !== null) details.push(`status=${result.status}`);
+  const stderr = String(result?.stderr ?? '').trim();
+  const stdout = String(result?.stdout ?? '').trim();
+  if (stderr) details.push(stderr);
+  if (stdout) details.push(stdout);
+  return details.join('\n').slice(0, 4000);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) process.exitCode = runCli();
