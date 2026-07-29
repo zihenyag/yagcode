@@ -182,7 +182,7 @@ def run_cli_demo(
             bug_fixes.append(fix)
             raise RuntimeError(f"CLI_DEMO_BUG_FIX_FAILED:{bug.project_id}")
         if index == 0 and fix["status"] == "PATCHED":
-            (bug.project_path / bug.relative_path).write_text(bug.original, encoding="utf-8")
+            (bug.project_path / bug.relative_path).write_text(bug.original, encoding="utf-8", newline="\n")
             rollback = {
                 "status": "RESTORED",
                 "project_id": bug.project_id,
@@ -477,7 +477,7 @@ def _create_projects(workspace: Path) -> tuple[Path, ...]:
 
 def _initialize_bug_repo(project: Path, index: int) -> None:
     source = project / "bug.py"
-    source.write_text(_original_bug(index), encoding="utf-8")
+    source.write_text(_original_bug(index), encoding="utf-8", newline="\n")
     if not _git_available():
         return
     if not (project / ".git").exists():
