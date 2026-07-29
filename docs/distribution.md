@@ -22,7 +22,7 @@ Each product/platform asset has a single-platform manifest under `dist/manifests
 
 ## Current Evidence
 
-Current local evidence covers macOS ARM64 desktop and CLI packaging. Windows desktop and CLI package smoke still need a Windows runner for latest-source verification.
+Release `v0.1.0` was built by GitHub Actions on macOS and Windows native runners. The `macos-15` job verifies the macOS desktop DMG and CLI tarball; the `windows-2022` job verifies the Windows NSIS installer and CLI zip. Both platform jobs run manifest verification and smoke checks before the release job uploads assets.
 
 ## Unsigned Artifacts
 

@@ -88,7 +88,7 @@ YagCode 的安全边界是本机操作系统账号和用户明确授权的项目
 
 ## 目标机器凭据配置
 
-目标机器第一次使用真实 Provider 时，通过桌面端或 CLI 的隐藏输入录入 key。支持状态查看、更新和清除；查看状态不会显示 key。
+目标机器第一次使用真实 Provider 时，通过桌面端或 CLI 的隐藏输入录入 key。支持状态查看、更新和清除；查看状态不会显示 key。CLI 使用 `/provider add <provider>` 绑定内置 Provider；需要接入兼容 OpenAI Chat Completions 的第三方服务时，可以额外传入 `--base-url`、`--docs-url`、`--label` 和 `--model`，密钥仍只写入系统 keyring。
 
 支持的 Provider 路径包括 OpenAI-compatible endpoint、Qwen、GLM、DeepSeek 和 NJU SE Hub。当前不支持 Anthropic。离线测试和机制演示使用 scripted/mock Provider，不需要真实网络 key。
 
