@@ -85,6 +85,9 @@ def test_platform_build_workflow_keeps_release_tag_gated() -> None:
     assert create_release["env"] == {"GH_TOKEN": "${{ github.token }}"}
     assert '--title "YagCode $GITHUB_REF_NAME"' in create_release["run"]
     assert "--notes-file CHANGELOG.md" in create_release["run"]
+    assert 'gh release edit "$GITHUB_REF_NAME"' in create_release["run"]
+    assert 'gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber' in create_release["run"]
+    assert 'gh release create "$GITHUB_REF_NAME" "${assets[@]}" --verify-tag' in create_release["run"]
     assert (ROOT / "CHANGELOG.md").is_file()
     _assert_pinned_actions(workflow)
 
