@@ -8,9 +8,14 @@ macOS:
 
 ```bash
 tar -xzf yagcode-cli-mac-arm64.tar.gz
-cd yagcode-cli
 cd /path/to/your/git-project
 /path/to/yagcode-cli/yagcode-cli
+```
+
+如果压缩包是从浏览器下载的，macOS 可能会给解压目录加下载隔离属性。新版 CLI 的 `yagcode-cli/yagcode-cli` 入口会在首次运行时自动清理同目录隔离属性；如果你的终端仍提示 Python runtime 或开发者验证相关错误，可以手动执行一次：
+
+```bash
+xattr -dr com.apple.quarantine /path/to/yagcode-cli
 ```
 
 Windows PowerShell:

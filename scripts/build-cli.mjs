@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,11 @@ export function cliTarget(platform, arch) {
 export function cliExecutable(root, key) {
   const name = key.startsWith('win32') ? 'yagcode-cli.exe' : 'yagcode-cli';
   return join(root, 'dist', 'cli', key, 'yagcode-cli', name);
+}
+
+export function cliInternalExecutable(root, key) {
+  if (key.startsWith('win32')) return cliExecutable(root, key);
+  return join(root, 'dist', 'cli', key, 'yagcode-cli', 'yagcode-cli.bin');
 }
 
 export function cliGuidePaths(root, key) {
@@ -65,6 +70,7 @@ export function cliBuildPlan({ root = process.cwd(), platform, arch }) {
         ],
       },
       { kind: 'copyGuide', ...guide, argv: [] },
+      ...(target.platformId === 'darwin' ? [{ kind: 'installMacLauncher', root, key: target.key, argv: [] }] : []),
       { kind: 'spawn', command: cliExecutable(root, target.key), argv: ['health'] },
       { kind: 'spawn', ...archiveCommand },
     ],
@@ -84,6 +90,10 @@ export function buildCli({ root = process.cwd(), platform, arch, spawn = spawnSy
   for (const step of plan.commands) {
     if (step.kind === 'copyGuide') {
       copyCliGuide(step);
+      continue;
+    }
+    if (step.kind === 'installMacLauncher') {
+      installMacCliLauncher(step);
       continue;
     }
     const result = spawn(step.command, step.argv, {
@@ -109,6 +119,40 @@ export function copyCliGuide({ source, destination }) {
   if (!existsSync(source)) throw new Error('CLI_GUIDE_MISSING');
   mkdirSync(dirname(destination), { recursive: true });
   copyFileSync(source, destination);
+}
+
+export function installMacCliLauncher({ root, key }) {
+  const launcher = cliExecutable(root, key);
+  const internal = cliInternalExecutable(root, key);
+  if (!existsSync(launcher)) throw new Error('CLI_EXECUTABLE_MISSING');
+  renameSync(launcher, internal);
+  writeFileSync(launcher, macCliLauncherScript(), 'utf8');
+  chmodSync(launcher, 0o755);
+}
+
+export function macCliLauncherScript() {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="\${BASH_SOURCE[0]:-$0}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+BUNDLE_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+if command -v xattr >/dev/null 2>&1; then
+  if xattr -pr com.apple.quarantine "$BUNDLE_DIR" >/dev/null 2>&1; then
+    if ! xattr -dr com.apple.quarantine "$BUNDLE_DIR" 2>/dev/null; then
+      echo "YAGCODE_MACOS_QUARANTINE_CLEAR_FAILED: run xattr -dr com.apple.quarantine \\"$BUNDLE_DIR\\"" >&2
+      exit 126
+    fi
+  fi
+fi
+
+exec "$BUNDLE_DIR/yagcode-cli.bin" "$@"
+`;
 }
 
 export function runCli(argv = process.argv.slice(2)) {

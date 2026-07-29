@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { parse } from 'yaml';
 
-import { cliBuildPlan, copyCliGuide } from '../../../scripts/build-cli.mjs';
+import { cliBuildPlan, copyCliGuide, macCliLauncherScript } from '../../../scripts/build-cli.mjs';
 import { desktopBuildPlan, localElectronDist, rejectUpdaterMetadata, sanitizedEnv } from '../../../scripts/build-desktop.mjs';
 import { pyinstallerDataArg, sidecarBuildPlan } from '../../../scripts/build-sidecar.mjs';
 import { createPlatformManifest, canonicalJson, mergeReleaseManifests, sha256File, verifyPlatformManifest, writeManifest } from '../../../scripts/hash-artifacts.mjs';
@@ -29,9 +29,12 @@ test('builder plans keep CLI, sidecar, and desktop products separate', () => {
   assert.ok(cli.commands.flatMap(step => step.argv).includes('/repo/src/yagcode/cli.py'));
   assert.ok(sidecar.commands.flatMap(step => step.argv).includes('/repo/src/yagcode/sidecar_cli.py'));
   const guideStep = cli.commands.findIndex(step => step.kind === 'copyGuide');
+  const launcherStep = cli.commands.findIndex(step => step.kind === 'installMacLauncher');
   const archiveStep = cli.commands.findIndex(step => step.command === 'tar');
   assert.ok(guideStep > 0);
-  assert.ok(archiveStep > guideStep);
+  assert.ok(launcherStep > guideStep);
+  assert.ok(archiveStep > launcherStep);
+  assert.equal(winCli.commands.find(step => step.kind === 'installMacLauncher'), undefined);
   assert.equal(desktop.commands[1].command, process.execPath);
   assert.ok(desktop.commands[1].argv.includes('/repo/node_modules/electron-builder/cli.js'));
   assert.ok(desktop.commands[1].argv.includes('--publish'));
@@ -48,6 +51,15 @@ test('builder plans keep CLI, sidecar, and desktop products separate', () => {
     command: 'cmd.exe',
     argv: ['/d', '/s', '/c', 'npm.cmd run build --workspace apps/desktop'],
   });
+});
+
+test('mac CLI launcher clears downloaded quarantine before starting bundled binary', () => {
+  const script = macCliLauncherScript();
+
+  assert.match(script, /com\.apple\.quarantine/);
+  assert.match(script, /xattr -dr/);
+  assert.match(script, /YAGCODE_MACOS_QUARANTINE_CLEAR_FAILED/);
+  assert.match(script, /yagcode-cli\.bin/);
 });
 
 test('sidecar pyinstaller data arguments use the target platform separator', () => {
