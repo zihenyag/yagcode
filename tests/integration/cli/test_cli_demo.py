@@ -71,3 +71,24 @@ def test_cli_demo_json_command_outputs_public_report_without_privacy_leaks(tmp_p
     assert report["threads"]["count"] == 50
     assert report["bug_fixes"][1]["status"] == "PATCHED"
     assert "-".join(("private", "token", "alpha")) not in rendered
+
+
+def test_cli_demo_falls_back_when_git_executable_is_missing(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("yagcode.cli_demo._git_available", lambda: False)
+
+    report = run_cli_demo(
+        workspace=tmp_path / "cli-demo",
+        provider="scripted",
+        model="scripted-local",
+        real_provider=False,
+    )
+    public = report.to_public_dict()
+
+    assert [item["status"] for item in public["bug_fixes"]] == [
+        "ROLLED_BACK",
+        "PATCHED",
+        "PATCHED",
+    ]
+    assert public["rollback"]["status"] == "RESTORED"
+    assert all(item["diff"]["files_changed"] == 1 for item in public["bug_fixes"])
+    assert all(item["diff"]["files"][0]["path"] == "bug.py" for item in public["bug_fixes"])

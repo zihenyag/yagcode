@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import difflib
 import json
+import shutil
 import subprocess
 
 from dataclasses import dataclass
@@ -13,7 +15,7 @@ from typing import Any, Literal
 from yagcode.domain.action_parser import ActionParseSuccess, ActionParser
 from yagcode.domain.actions import Action
 from yagcode.domain.results import SideEffectState, ToolResult, ToolStatus
-from yagcode.git.working_tree import ProjectInspection, inspect_project
+from yagcode.git.working_tree import ProjectInspection, inspect_project, parse_unified_diff
 from yagcode.providers import ProviderContext, ProviderFailure, ProviderResult, load_official_endpoints
 from yagcode.providers.runtime_http import HttpJsonActionProvider, Urlopen
 from yagcode.secrets import CredentialBroker
@@ -277,8 +279,7 @@ def _run_scripted_bug_fix(bug: _BugCase) -> dict[str, object]:
                 review_summary = action.payload.summary
                 break
             observations.append("review:PATCH_NOT_APPLIED")
-    inspection = inspect_project(str(bug.project_path))
-    diff = _diff_summary(inspection)
+    diff = _bug_diff_summary(bug)
     return {
         "project_id": bug.project_id,
         "thread_id": bug.run_id.replace("run-", "thread-"),
@@ -342,7 +343,6 @@ def _run_real_bug_fix(
                 review_summary = action.payload.summary
                 break
             observations.append("review:PATCH_NOT_APPLIED")
-    inspection = inspect_project(str(bug.project_path))
     return {
         "project_id": bug.project_id,
         "thread_id": bug.run_id.replace("run-", "thread-"),
@@ -351,7 +351,7 @@ def _run_real_bug_fix(
         "status": status,
         "provider_call_count": provider_call_count,
         "permission_approvals": permission_approvals,
-        "diff": _diff_summary(inspection),
+        "diff": _bug_diff_summary(bug),
         "review_summary": review_summary,
         "observations": tuple(observations),
     }
@@ -476,12 +476,14 @@ def _create_projects(workspace: Path) -> tuple[Path, ...]:
 
 
 def _initialize_bug_repo(project: Path, index: int) -> None:
+    source = project / "bug.py"
+    source.write_text(_original_bug(index), encoding="utf-8")
+    if not _git_available():
+        return
     if not (project / ".git").exists():
         _git(project, "init")
         _git(project, "config", "user.email", "demo@example.invalid")
         _git(project, "config", "user.name", "YagCode Demo")
-    source = project / "bug.py"
-    source.write_text(_original_bug(index), encoding="utf-8")
     _git(project, "add", "bug.py")
     if not _has_head(project):
         _git(project, "commit", "-m", "test: baseline")
@@ -628,8 +630,46 @@ def _diff_summary(inspection: ProjectInspection) -> dict[str, object]:
     }
 
 
+def _bug_diff_summary(bug: _BugCase) -> dict[str, object]:
+    inspection = inspect_project(str(bug.project_path))
+    if inspection.diff_files:
+        return _diff_summary(inspection)
+    current = (bug.project_path / bug.relative_path).read_text(encoding="utf-8")
+    fallback = ProjectInspection(
+        path=str(bug.project_path),
+        label=bug.project_path.name,
+        exists=True,
+        is_directory=True,
+        is_git_repo=False,
+        git_root=None,
+        branch=None,
+        status_summary=(),
+        diff_files=parse_unified_diff(_fallback_unified_diff(bug.relative_path, bug.original, current)),
+        error=None,
+    )
+    return _diff_summary(fallback)
+
+
+def _fallback_unified_diff(relative_path: str, before: str, after: str) -> str:
+    if before == after:
+        return ""
+    lines = difflib.unified_diff(
+        before.splitlines(),
+        after.splitlines(),
+        fromfile=f"a/{relative_path}",
+        tofile=f"b/{relative_path}",
+        lineterm="",
+    )
+    body = "\n".join(lines)
+    return f"diff --git a/{relative_path} b/{relative_path}\n{body}\n"
+
+
 def _has_head(project: Path) -> bool:
     return _git_result(project, "rev-parse", "--verify", "HEAD").returncode == 0
+
+
+def _git_available() -> bool:
+    return shutil.which("git") is not None
 
 
 def _git(project: Path, *argv: str) -> str:
