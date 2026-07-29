@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +16,7 @@ export function desktopTarget(platform, arch) {
 
 export function desktopBuildPlan({ root = process.cwd(), platform, arch }) {
   const target = desktopTarget(platform, arch);
+  const electronDist = localElectronDist(root);
   return {
     target,
     asset: join(root, 'dist', 'release', target.asset),
@@ -30,6 +31,7 @@ export function desktopBuildPlan({ root = process.cwd(), platform, arch }) {
           join(root, 'packaging', 'electron-builder.yml'),
           '--publish',
           'never',
+          ...(electronDist === null ? [] : [`--config.electronDist=${electronDist}`]),
           ...target.builder,
         ],
       },
@@ -40,6 +42,11 @@ export function desktopBuildPlan({ root = process.cwd(), platform, arch }) {
       ELECTRON_BUILDER_CACHE: join(tmpdir(), 'yagcode-electron-builder-cache'),
     },
   };
+}
+
+export function localElectronDist(root) {
+  const electronDist = join(root, 'node_modules', 'electron', 'dist');
+  return existsSync(electronDist) ? electronDist : null;
 }
 
 export function npmStep(platformId, argv) {

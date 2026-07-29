@@ -6,7 +6,7 @@ import test from 'node:test';
 import { parse } from 'yaml';
 
 import { cliBuildPlan, copyCliGuide } from '../../../scripts/build-cli.mjs';
-import { desktopBuildPlan, rejectUpdaterMetadata, sanitizedEnv } from '../../../scripts/build-desktop.mjs';
+import { desktopBuildPlan, localElectronDist, rejectUpdaterMetadata, sanitizedEnv } from '../../../scripts/build-desktop.mjs';
 import { sidecarBuildPlan } from '../../../scripts/build-sidecar.mjs';
 import { createPlatformManifest, canonicalJson, mergeReleaseManifests, sha256File, verifyPlatformManifest, writeManifest } from '../../../scripts/hash-artifacts.mjs';
 import { smokeCli } from '../../../scripts/smoke-cli.mjs';
@@ -102,6 +102,16 @@ test('desktop builder strips signing secrets and rejects updater metadata', () =
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, 'latest.yml'), 'bad', 'utf8');
   assert.throws(() => rejectUpdaterMetadata(directory), /UPDATER_METADATA_FORBIDDEN/);
+});
+
+test('desktop builder uses the local Electron runtime when node_modules provides it', () => {
+  const root = join(tmpdir(), `yagcode-local-electron-${Date.now()}`);
+  mkdirSync(join(root, 'node_modules', 'electron', 'dist'), { recursive: true });
+
+  const plan = desktopBuildPlan({ root, platform: 'mac', arch: 'arm64' });
+
+  assert.equal(localElectronDist(root), join(root, 'node_modules', 'electron', 'dist'));
+  assert.ok(plan.commands[1].argv.includes(`--config.electronDist=${join(root, 'node_modules', 'electron', 'dist')}`));
 });
 
 test('electron builder config disables dmg update metadata', () => {
